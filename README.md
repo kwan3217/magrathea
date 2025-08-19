@@ -1,2 +1,2 @@
-# Python template
-This is a template that creates a blank pyproject-style project.
+# Magrathea
+Reimplementation of James Blinn's "Magrathea" programs, which were used to generate the old Voyager flyby movies
