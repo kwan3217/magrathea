@@ -118,8 +118,11 @@ def planet(*,
     B=2*vdot(R0n,Vn)
     C=vdot(R0n,R0n)-1
     D=B**2-4*A*C
-    tp=(-B+np.sqrt(D))/(2*A)
-    tm=(-B-np.sqrt(D))/(2*A)
+    with np.errstate(invalid='ignore'):
+        # Points that are off-disk take the square root of a negative and return NaN. This is correct and expected.
+        # Put this in an ignore to ignore this specific warning
+        tp=(-B+np.sqrt(D))/(2*A)
+        tm=(-B-np.sqrt(D))/(2*A)
     def choose_root(root1,root2):
         # Create a mask for positive roots
         pos1 = root1 > 0
@@ -170,8 +173,11 @@ def planet(*,
     rows_tm=texture_map.shape[0] # number of columns
     cols_tm=texture_map.shape[1] # number of rows
     valid=np.isfinite(lat)
-    x_tex=linterp(0.0,0.0,360.0,cols_tm-1,(lon+extra_rot)%360.0).astype(np.uint16)  #RIP Ariane 5 Flight 1
-    y_tex=linterp(90.0,0.0,-90.0,rows_tm-1,lat).astype(np.uint16)
+    with np.errstate(invalid='ignore'):
+        # Points that are off-disk get NaN which don't map cleanly to int (and are coerced to 0 in this case).
+        # Put this in an ignore to ignore this specific warning
+        x_tex=linterp(0.0,0.0,360.0,cols_tm-1,(lon+extra_rot)%360.0).astype(np.uint16)  #RIP Ariane 5 Flight 1
+        y_tex=linterp(90.0,0.0,-90.0,rows_tm-1,lat).astype(np.uint16)
     # * Scale the texture color by the brightness. This is the color for each pixel that has an intersection
     # * For pixels with intersections, overwrite the frame buffer color with the calculated color. Don't for
     #   pixels with no intersections.

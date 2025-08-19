@@ -1,13 +1,16 @@
 """
-Describe purpose of this script here
+Magrathea: A library for synthesizing planetary and space imagery.
+
+Inspired by James Blinn's Voyager animations, this package provides functions to render planets, stars, rings,
+and spacecraft using NumPy, SPICE kernels, and texture maps.
+
+Main functions:
+- planet: Renders planetary surfaces.
+- stars: Adds starfields to scenes.
+- rings: Generates planetary ring systems.
+- triangles: Draws spacecraft models.
 
 Created: 8/19/25
 """
 
-
-def main():
-    pass
-
-
-if __name__ == "__main__":
-    main()
+from .planet import planet, planets
