@@ -1,0 +1,9 @@
+*.bc
+*.ck
+*.tf
+*.ti
+*.tsc
+*.bsp
+*.tls
+*.tpc
+/ck/V1SAT_VERSION2_TYPE3_UVS_SEDR.csv
