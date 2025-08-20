@@ -10,22 +10,22 @@ from kwanmath.geodesy import xyz2lla
 from spiceypy import spkezr, bodc2n, pxform, gdpool
 
 
-def planet(*,
-           frame_buffer:np.ndarray,
-           down_u:np.ndarray,
-           right_u:np.ndarray,
-           direction_u:np.ndarray,
-           ellipsoid_spice_id:int,
-           view_spice_id:int,
-           light_spice_id:int=10,
-           et:float,
-           shadow_casters_spice_ids:list[int]=None,
-           universe_frame:str="J2000",
-           texture_map:np.ndarray,
-           r_viewpoint_b:np.ndarray=None,
-           r_light_b:np.ndarray=None,
-           M_bu:np.ndarray=None,
-           extra_rot:float=0)->None:
+def draw_planet(*,
+                frame_buffer:np.ndarray,
+                down_u:np.ndarray,
+                right_u:np.ndarray,
+                direction_u:np.ndarray,
+                ellipsoid_spice_id:int,
+                view_spice_id:int,
+                light_spice_id:int=10,
+                et:float,
+                shadow_casters_spice_ids:list[int]=None,
+                universe_frame:str="J2000",
+                texture_map:np.ndarray,
+                r_viewpoint_b:np.ndarray=None,
+                r_light_b:np.ndarray=None,
+                M_bu:np.ndarray=None,
+                extra_rot:float=0)->None:
     """
     Draw a texture-mapped ellipsoid into the frame buffer
 
@@ -184,17 +184,17 @@ def planet(*,
     frame_buffer[:]=np.where(valid[...,None],texture_map[y_tex,x_tex,:]*bright[...,None],frame_buffer)
 
 
-def planets(*,
-            frame_buffer:np.ndarray,
-            down_u:np.ndarray,
-            right_u:np.ndarray,
-            direction_u:np.ndarray,
-            view_spice_id:int,
-            light_spice_id:int=10,
-            et:float,
-            universe_frame:str="J2000",
-            texture_maps:dict[int,np.ndarray],
-            extra_rots:dict[int,float]=None):
+def draw_planets(*,
+                 frame_buffer:np.ndarray,
+                 down_u:np.ndarray,
+                 right_u:np.ndarray,
+                 direction_u:np.ndarray,
+                 view_spice_id:int,
+                 light_spice_id:int=10,
+                 et:float,
+                 universe_frame:str="J2000",
+                 texture_maps:dict[int,np.ndarray],
+                 extra_rots:dict[int,float]=None):
     """
     Draw multiple ellipsoids
     :param frame_buffer: frame buffer, an array of rgb pixels, appropriate for plotting onto a pyplot or saving
@@ -216,7 +216,7 @@ def planets(*,
     * Sort ellipsoid centers by distance
     * For each ellipsoid in distance order from far to near:
     *    Make a set of shaders that includes all ellipsoids except for this one
-    *    use planet() to draw the ellipsoid
+    *    use draw_planet() to draw the ellipsoid
     """
     # * Ellpsoids to draw are texture_maps.keys()
     if extra_rots is None:
@@ -232,16 +232,16 @@ def planets(*,
     for id in sorted_ids:
         # *    Make a set of shaders that includes all ellipsoids except for this one
         shaders=id_set-{id}
-        # *    use planet() to draw the ellipsoid
-        planet(frame_buffer=frame_buffer,
-               down_u=down_u,
-               right_u=right_u,
-               direction_u=direction_u,
-               ellipsoid_spice_id=id,
-               view_spice_id=view_spice_id,
-               light_spice_id=light_spice_id,
-               et=et,
-               shadow_casters_spice_ids=shaders,
-               universe_frame=universe_frame,
-               texture_map=texture_maps[id],
-               extra_rot=extra_rots[id] if id in extra_rots else 0)
+        # *    use draw_planet() to draw the ellipsoid
+        draw_planet(frame_buffer=frame_buffer,
+                    down_u=down_u,
+                    right_u=right_u,
+                    direction_u=direction_u,
+                    ellipsoid_spice_id=id,
+                    view_spice_id=view_spice_id,
+                    light_spice_id=light_spice_id,
+                    et=et,
+                    shadow_casters_spice_ids=shaders,
+                    universe_frame=universe_frame,
+                    texture_map=texture_maps[id],
+                    extra_rot=extra_rots[id] if id in extra_rots else 0)

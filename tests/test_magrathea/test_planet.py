@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import pytest
 from spiceypy import furnsh
 
-from magrathea.planet import planet, planets
+from magrathea.planet import draw_planet, draw_planets
 
 
 @pytest.fixture(autouse=True,scope="session")
@@ -21,18 +21,18 @@ def furnish():
 
 def test_planet():
     frame_buffer=np.zeros([1080,1440,3])
-    planet(frame_buffer=frame_buffer,
-           down_u=np.array([[1.0],[0.0],[0]]),
-           right_u=np.array([[0.0],[4.0/3.0],[0]]),
-           direction_u=np.array([[0.0],[0.0],[1.0]]),
-           ellipsoid_spice_id=599,
-           view_spice_id=-31,
-           light_spice_id=10,
-           et=-1000,
-           texture_map=plt.imread("data/textures/JupiterMap.png"),
-           r_viewpoint_b=np.array([[0.0],[0.0],[-3e5]]),
-           M_bu=np.identity(3),
-           r_light_b=np.array([[1e8],[0.0],[0.0]]))
+    draw_planet(frame_buffer=frame_buffer,
+                down_u=np.array([[1.0],[0.0],[0]]),
+                right_u=np.array([[0.0],[4.0/3.0],[0]]),
+                direction_u=np.array([[0.0],[0.0],[1.0]]),
+                ellipsoid_spice_id=599,
+                view_spice_id=-31,
+                light_spice_id=10,
+                et=-1000,
+                texture_map=plt.imread("data/textures/JupiterMap.png"),
+                r_viewpoint_b=np.array([[0.0],[0.0],[-3e5]]),
+                M_bu=np.identity(3),
+                r_light_b=np.array([[1e8],[0.0],[0.0]]))
     plt.imshow(frame_buffer)
     plt.show()
 
@@ -58,15 +58,15 @@ def test_planets():
                   503:plt.imread("data/textures/GanymedeMap.png"),
                   504:plt.imread("data/textures/CallistoMap.png")}
     extra_rots={599:-16}
-    planets(frame_buffer=frame_buffer,
-            down_u=down_u,
-            right_u=right_u,
-            direction_u=direction_u,
-            view_spice_id=-31,
-            et=et,
-            universe_frame=univ_frame,
-            texture_maps=texture_maps,
-            extra_rots=extra_rots)
+    draw_planets(frame_buffer=frame_buffer,
+                 down_u=down_u,
+                 right_u=right_u,
+                 direction_u=direction_u,
+                 view_spice_id=-31,
+                 et=et,
+                 universe_frame=univ_frame,
+                 texture_maps=texture_maps,
+                 extra_rots=extra_rots)
     plt.imshow(frame_buffer)
     plt.show()
 

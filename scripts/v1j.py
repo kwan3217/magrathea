@@ -10,7 +10,7 @@ from matplotlib import pyplot as plt
 from scipy.interpolate import interp1d
 from spiceypy import furnsh, str2et, spkezr
 
-from magrathea import planets, stage
+from magrathea import draw_planets, stage
 
 # Closest approach on calendar
 cal_ca="1979-03-05 12:05:26 TDB"
@@ -100,15 +100,15 @@ def main():
                                y_d=f_yd(frame_number)
                                )
         frame_buffer=np.zeros([1080,1440,3])
-        planets(frame_buffer=frame_buffer,
-                down_u=frame_stage.down_u,
-                right_u=frame_stage.right_u,
-                direction_u=frame_stage.direction_u,
-                view_spice_id=-31,
-                et=et,
-                universe_frame=univ_frame,
-                texture_maps=texture_maps,
-                extra_rots=extra_rots)
+        draw_planets(frame_buffer=frame_buffer,
+                     down_u=frame_stage.down_u,
+                     right_u=frame_stage.right_u,
+                     direction_u=frame_stage.direction_u,
+                     view_spice_id=-31,
+                     et=et,
+                     universe_frame=univ_frame,
+                     texture_maps=texture_maps,
+                     extra_rots=extra_rots)
         plt.clf()
         plt.imshow(frame_buffer)
         plt.title(f"Frame {frame_number}")

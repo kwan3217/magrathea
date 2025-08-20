@@ -5,15 +5,15 @@ Inspired by James Blinn's Voyager animations, this package provides functions to
 and spacecraft using NumPy, SPICE kernels, and texture maps.
 
 Main functions:
-- planet: Renders planetary surfaces.
-- stars: Adds starfields to scenes.
+- draw_planet, draw_planets: Renders planetary surfaces.
+- draw_stars: Adds starfields to scenes.
 - rings: Generates planetary ring systems.
 - triangles: Draws spacecraft models.
 
 Created: 8/19/25
 """
 
-from .planet import planet, planets
+from .planet import draw_planet, draw_planets
 from .stage import stage
 from .stars.starcat import load_stars
 from .stars.stardraw import draw_star
