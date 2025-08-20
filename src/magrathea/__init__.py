@@ -14,3 +14,4 @@ Created: 8/19/25
 """
 
 from .planet import planet, planets
+from .stage import stage

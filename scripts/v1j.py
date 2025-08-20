@@ -3,17 +3,14 @@ Describe purpose of this script here
 
 Created: 8/19/25
 """
-from dataclasses import dataclass
 
 import numpy as np
 from kwanmath.interp import linterp
-from kwanmath.matrix import point_toward
-from kwanmath.vector import vnormalize
 from matplotlib import pyplot as plt
 from scipy.interpolate import interp1d
 from spiceypy import furnsh, str2et, spkezr
 
-from magrathea import planets
+from magrathea import planets, stage
 
 # Closest approach on calendar
 cal_ca="1979-03-05 12:05:26 TDB"
@@ -69,140 +66,6 @@ f_yp=interp1d(jupiter_pos[:,0],jupiter_pos[:,2],kind='linear', fill_value='extra
 f_xd=lambda fn:linterp(0,-0.5,640,0.5,f_xp(fn))
 f_yd=lambda fn:linterp(0,-0.5,480,0.5,f_yp(fn))
 
-@dataclass
-class LocalStageResult:
-    stage_right:np.ndarray
-    stage_down:np.ndarray
-    stage_out:np.ndarray
-    location:np.ndarray
-    look_at:np.ndarray
-    cam_sky:np.ndarray
-    cam_right:np.ndarray
-    cam_angle:float
-    direction_scale:float
-
-
-def local_stage(*,
-          camera_ru:np.ndarray,
-          actor_ru:np.ndarray,
-          sky_vec:np.ndarray,
-          right_scale:float,
-          angle:float,
-          x_d:float,
-          y_d:float)->LocalStageResult:
-    # Calculate direction from angle and aspect ratio
-    direction_scale=0.5*right_scale/np.tan(np.deg2rad(angle)/2)
-    cam_angle=angle
-    cam_right=np.array([[right_scale],
-                        [0.0],
-                        [0.0]])
-    x=np.array([[1.0],[0.0],[0.0]])
-    y=np.array([[0.0],[1.0],[0.0]])
-    z=np.array([[0.0],[0.0],[1.0]])
-    #PrintNumber("DirectionScale: ",DirectionScale)
-    # Create actor vector in stage frame
-    z_d=1
-    r_d=np.array([[x_d],
-                  [y_d],
-                  [z_d]])
-    #PrintVector("r_d: ",r_d)
-    # Transform actor vector into camera orthonomral frame
-    r_n=r_d*np.array([[right_scale],[1],[direction_scale]])
-    #PrintVector("r_n: ",r_n)
-    # Implement Point-Toward. We have R=[p_r, s_r, u_r] in reference (universe) space, and
-    p_r=vnormalize(actor_ru-camera_ru)
-    #PrintVector("Pr: ",Pr)
-    p_b=vnormalize(r_n)
-    #PrintVector("Pb: ",Pb)
-    t_r=vnormalize(sky_vec)
-    #PrintVector("Tr: ",Tr)
-    t_b=-y
-    #PrintVector("Tb: ",Tb)
-    M_rb=point_toward(p_r=p_r,p_b=p_b,t_r=t_r,t_b=t_b)
-    #PrintMatrix("M_rb: ",M_rb)
-    #// Stage vectors in camera universe space. These are appropriate for placing foreground actors. They are all unit
-    #// length so you will have to take into account z distance, direction, and aspect to place objects.
-    stage_right=M_rb @ x
-    #local Result[0]=StageRight;
-    stage_down=M_rb @ y
-    #local Result[1]=StageDown;
-    stage_out=M_rb @ z
-    #local Result[2]=StageOut;
-    #// Assign camera variables
-    location=camera_ru
-    #local Result[3]=Location;
-    look_at=location+stage_out
-    #local Result[4]=LookAt;
-    cam_sky=vnormalize(sky_vec)
-    #local Result[5]=CamSky;
-    result=LocalStageResult(stage_right=stage_right,
-                            stage_down=stage_down,
-                            stage_out=stage_out,
-                            location=location,
-                            look_at=look_at,
-                            cam_sky=cam_sky,
-                            cam_right=cam_right,
-                            cam_angle=cam_angle,
-                            direction_scale=direction_scale)
-    return result
-
-@dataclass
-class StageResult:
-    right_u:np.ndarray
-    down_u:np.ndarray
-    direction_u:np.ndarray
-
-
-def stage(*,
-          camera_ru:np.ndarray,
-          actor_ru:np.ndarray,
-          sky_vec:np.ndarray,
-          right_scale:float,
-          angle:float,
-          x_d:float,
-          y_d:float)->StageResult:
-    this_local_stage=local_stage(
-        camera_ru=camera_ru,
-        actor_ru=actor_ru,
-        sky_vec=sky_vec,
-        right_scale=right_scale,
-        angle=angle,
-        x_d=x_d,
-        y_d=y_d
-    )
-    # Calculate direction from angle and aspect ratio
-    direction_scale=this_local_stage.direction_scale
-    cam_angle=this_local_stage.cam_angle
-    cam_right=this_local_stage.cam_right
-    stage_right=this_local_stage.stage_right
-    stage_down=this_local_stage.stage_down
-    stage_out=this_local_stage.stage_out
-    #PrintVector(" StageRight: ",StageRight)
-    #PrintVector(" StageDown:  ",StageDown )
-    #PrintVector(" StageOut:   ",StageOut  )
-    #PrintMatrix("M: ",M3b1b(StageRight,StageDown,StageOut))
-    # Assign camera variables
-    location=this_local_stage.location
-    look_at=this_local_stage.look_at
-    cam_sky=this_local_stage.cam_sky
-    # Transformation appropriate for HUD. This properly projects things in the plane z=DirectionScale
-    # to the screen. The top edge is at y=-0.5, bottom at y=+0.5, left at x=-CamRight*0.5, right at x=+CamRight*0.5
-    # Note that this is uniform in the XY plane, so it won't distort text etc.
-    # Note that POV-Ray convention looks like a transpose of my convention so
-    #  M=[ M00 M01 M02 Tx]
-    #    [ M10 M11 M12 Ty]
-    #    [ M20 M21 M22 Tz]
-    #    [   0   0   0  1]
-    # is represented as:
-    # transform{matrix <M00,M10,M20,
-    #                   M01,M11,M21,
-    #                   M02,M12,M22,
-    #                   Tx ,Ty ,Tz  >}
-    # Since we aren't in POV-Ray any more, we make a 4x4 matrix like above
-    hud_matrix=np.vstack((np.hstack((stage_right,stage_down,stage_out*direction_scale,location)),
-                          np.array([0.0,0.0,0.0,1.0])))
-    return StageResult(right_u=stage_right*right_scale,down_u=stage_down,direction_u=stage_out*direction_scale)
-
 
 def main():
     univ_frame="ECLIPB1950"
@@ -228,14 +91,14 @@ def main():
         jupiter_state,_=spkezr("599",et,univ_frame,"LT+S",str(-30-vgr))
         jupiter_pos=jupiter_state[:3].reshape(-1,1)
         if frame_number<=2185:
-            frame_stage=stage(camera_ru=np.array([[0.0],[0.0],[0.0]]),
-                                             actor_ru=jupiter_pos,
-                                             sky_vec=np.array([[0.0],[0.0],[1.0]]),
-                                             right_scale=4.0/3.0,
-                                             angle=18.0,
-                                             x_d=f_xd(frame_number),
-                                             y_d=f_yd(frame_number)
-                                             )
+            frame_stage= stage(camera_ru=np.array([[0.0], [0.0], [0.0]]),
+                               actor_ru=jupiter_pos,
+                               sky_vec=np.array([[0.0],[0.0],[1.0]]),
+                               right_scale=4.0/3.0,
+                               angle=18.0,
+                               x_d=f_xd(frame_number),
+                               y_d=f_yd(frame_number)
+                               )
         frame_buffer=np.zeros([1080,1440,3])
         planets(frame_buffer=frame_buffer,
                 down_u=frame_stage.down_u,
@@ -246,11 +109,11 @@ def main():
                 universe_frame=univ_frame,
                 texture_maps=texture_maps,
                 extra_rots=extra_rots)
-        #plt.clf()
-        #plt.imshow(frame_buffer)
-        #plt.title(f"Frame {frame_number}")
-        #plt.pause(0.01)
-    #plt.show()
+        plt.clf()
+        plt.imshow(frame_buffer)
+        plt.title(f"Frame {frame_number}")
+        plt.pause(0.01)
+    plt.show()
 
 
 if __name__ == "__main__":
