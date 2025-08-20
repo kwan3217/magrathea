@@ -115,11 +115,11 @@ def main():
                      universe_frame=univ_frame,
                      texture_maps=texture_maps,
                      extra_rots=extra_rots)
-        plt.clf()
-        plt.imshow(frame_buffer)
-        plt.title(f"Frame {frame_number}")
-        plt.pause(0.01)
-    plt.show()
+        #plt.clf()
+        #plt.imshow(frame_buffer)
+        #plt.title(f"Frame {frame_number}")
+        #plt.pause(0.01)
+    #plt.show()
 
 
 if __name__ == "__main__":

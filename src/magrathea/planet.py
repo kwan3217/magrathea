@@ -10,16 +10,7 @@ from kwanmath.geodesy import xyz2lla
 from spiceypy import spkezr, bodc2n, pxform, gdpool
 
 
-def _draw_planet_top_half():
-    pass
-
-
-def _draw_planet_bottom_half():
-    pass
-
-
-def _draw_planet(*,
-                frame_buffer:np.ndarray,
+def _draw_planet_top_half(*,
                 down_u:np.ndarray,
                 right_u:np.ndarray,
                 direction_u:np.ndarray,
@@ -29,56 +20,9 @@ def _draw_planet(*,
                 et:float,
                 shadow_casters_spice_ids:list[int]=None,
                 universe_frame:str="J2000",
-                texture_map:np.ndarray,
                 r_viewpoint_b:np.ndarray=None,
                 r_light_b:np.ndarray=None,
-                M_bu:np.ndarray=None,
-                extra_rot:float=0)->None:
-    """
-    Draw a texture-mapped ellipsoid into the frame buffer
-
-    :param frame_buffer: frame buffer, an array of rgb pixels, appropriate for plotting onto a pyplot or saving
-                         as a png (rows x cols x 3)
-    :param down_u: down vector of camera in universe frame
-    :param right_u: right vector of camera in universe frame
-    :param direction_u: direction vector of camera in universe frame
-    :param ellipsoid_spice_id: spice id of ellipsoid to be drawn, for instance 599 for Jupiter or 501 for Io
-    :param view_spice_id: spice id for viewpoint, for instance -31 for Voyager
-    :param light_spice_id: spice id of light source, 10=sun by default
-    :param et: Spice ephemeris time of frame
-    :param shadow_casters_spice_ids: list of spice ids of objects which might cast shadows on the
-    :param universe_frame: frame of down, right, and direction vectors
-    :param texture_map: texture map to use to draw planet
-    :param r_viewpoint_b: If passed, use this as position of viewpoint in body frame instead of calculating it from spkezr
-    :param M_bu: If passed, use this as transformation from universe to body instead of calculating it with pxform
-
-    :return: None, but a side effect is that the ellipsoid in question is drawn on the frame buffer
-
-    Algorithm:
-    * Use spkezr to calculate the position of the ellipsoid relative to the viewpoint. Reverse this vector
-      to get the position of the viewpoint relative to the ellipsoid. We do it this way because neither LT+S
-      nor XLT+S is exactly what we want. We want the position of the spacecraft relative to the ellipsoid
-      at the time that the photons from the ellipsoid arrive at the spacecraft at ET. So, we use LT+S to get
-      the position of the ellipsoid relative to the viewer, then reverse the vector. We work in the body frame
-      of the ellipsoid in any case.
-    * Use pxform to get the rotation from universe to body frame at ET-LT, the orientation of the body at the time
-      the light originates at the ellipsoid
-    * Transform the camera vectors into the ellipsoid body frame
-    From here down, all calculations are done in the ellipsoid body frame
-    * Use the camera vectors to generate rays for all pixels. The r0 is the viewpoint in the body frame,
-      and v is calculated as a linear combination of down_b, right_b, and direction_b using normalized
-      image coordinates ranging from -0.5 on top and left to +0.5 on bottom and right.
-    * Solve the ray-ellipsoid intersection for all rays
-    * Calculate the normal vector at all intersections
-    * Calculate the position of the light source at ET-LT using LT+S, with observer as ellipsoid center and target
-      as light source.
-    * Calculate the brightness model at all intersections. Eventually this will include shaders.
-    * Calculate latitude and longitude at all intersections
-    * Interpolate the texture map using latitude and longitude
-    * Scale the texture color by the brightness. This is the color for each pixel that has an intersection
-    * For pixels with intersections, overwrite the frame buffer color with the calculated color. Don't for
-      pixels with no intersections.
-    """
+                M_bu:np.ndarray=None)->tuple:
     # * Use spkezr to calculate the position of the ellipsoid relative to the viewpoint. Reverse this vector
     #   to get the position of the viewpoint relative to the ellipsoid. We do it this way because neither LT+S
     #   nor XLT+S is exactly what we want. We want the position of the spacecraft relative to the ellipsoid
@@ -113,8 +57,19 @@ def _draw_planet(*,
     r_e,_,r_p=gdpool(f"BODY{ellipsoid_spice_id}_RADII",0,3)
     n=np.array([[r_e],[r_e],[r_p]])
     n2=n*n
+    return right_b,down_b,direction_b,r_viewpoint_b,n,n2,r_light_b
 
 
+def _draw_planet_bottom_half(frame_buffer:np.ndarray,
+                             texture_map: np.ndarray,
+                             extra_rot: float,
+                             right_b:np.ndarray,
+                             down_b:np.ndarray,
+                             direction_b:np.ndarray,
+                             r_viewpoint_b:np.ndarray,
+                             n:np.ndarray,
+                             n2:np.ndarray,
+                             r_light_b:np.ndarray):
     # From here down, all calculations are done in the ellipsoid body frame
 
     # * Use the camera vectors to generate rays for all pixels. The r0 is the viewpoint in the body frame,
@@ -180,7 +135,7 @@ def _draw_planet(*,
     ambient=0.1
     bright=lambert+ambient
     # * Calculate latitude and longitude at all intersections
-    lat,lon,_=xyz2lla(centric=False,deg=True,xyz=r_surf_b,re=r_e,rp=r_p,east=True)
+    lat,lon,_=xyz2lla(centric=False,deg=True,xyz=r_surf_b,re=n[0],rp=n[2],east=True)
     # * Interpolate the texture map using latitude and longitude
     rows_tm=texture_map.shape[0] # number of columns
     cols_tm=texture_map.shape[1] # number of rows
@@ -194,6 +149,84 @@ def _draw_planet(*,
     # * For pixels with intersections, overwrite the frame buffer color with the calculated color. Don't for
     #   pixels with no intersections.
     frame_buffer[:]=np.where(valid[...,None],texture_map[y_tex,x_tex,:]*bright[...,None],frame_buffer)
+
+
+def _draw_planet(*,
+                frame_buffer:np.ndarray,
+                down_u:np.ndarray,
+                right_u:np.ndarray,
+                direction_u:np.ndarray,
+                ellipsoid_spice_id:int,
+                view_spice_id:int,
+                light_spice_id:int=10,
+                et:float,
+                shadow_casters_spice_ids:list[int]=None,
+                universe_frame:str="J2000",
+                texture_map:np.ndarray,
+                r_viewpoint_b:np.ndarray=None,
+                r_light_b:np.ndarray=None,
+                M_bu:np.ndarray=None,
+                extra_rot:float=0)->None:
+    """
+    Draw a texture-mapped ellipsoid into the frame buffer
+
+    :param frame_buffer: frame buffer, an array of rgb pixels, appropriate for plotting onto a pyplot or saving
+                         as a png (rows x cols x 3)
+    :param down_u: down vector of camera in universe frame
+    :param right_u: right vector of camera in universe frame
+    :param direction_u: direction vector of camera in universe frame
+    :param ellipsoid_spice_id: spice id of ellipsoid to be drawn, for instance 599 for Jupiter or 501 for Io
+    :param view_spice_id: spice id for viewpoint, for instance -31 for Voyager
+    :param light_spice_id: spice id of light source, 10=sun by default
+    :param et: Spice ephemeris time of frame
+    :param shadow_casters_spice_ids: list of spice ids of objects which might cast shadows on the
+    :param universe_frame: frame of down, right, and direction vectors
+    :param texture_map: texture map to use to draw planet
+    :param r_viewpoint_b: If passed, use this as position of viewpoint in body frame instead of calculating it from spkezr
+    :param M_bu: If passed, use this as transformation from universe to body instead of calculating it with pxform
+
+    :return: None, but a side effect is that the ellipsoid in question is drawn on the frame buffer
+
+    Algorithm:
+    * Use spkezr to calculate the position of the ellipsoid relative to the viewpoint. Reverse this vector
+      to get the position of the viewpoint relative to the ellipsoid. We do it this way because neither LT+S
+      nor XLT+S is exactly what we want. We want the position of the spacecraft relative to the ellipsoid
+      at the time that the photons from the ellipsoid arrive at the spacecraft at ET. So, we use LT+S to get
+      the position of the ellipsoid relative to the viewer, then reverse the vector. We work in the body frame
+      of the ellipsoid in any case.
+    * Use pxform to get the rotation from universe to body frame at ET-LT, the orientation of the body at the time
+      the light originates at the ellipsoid
+    * Transform the camera vectors into the ellipsoid body frame
+    From here down, all calculations are done in the ellipsoid body frame
+    * Use the camera vectors to generate rays for all pixels. The r0 is the viewpoint in the body frame,
+      and v is calculated as a linear combination of down_b, right_b, and direction_b using normalized
+      image coordinates ranging from -0.5 on top and left to +0.5 on bottom and right.
+    * Solve the ray-ellipsoid intersection for all rays
+    * Calculate the normal vector at all intersections
+    * Calculate the position of the light source at ET-LT using LT+S, with observer as ellipsoid center and target
+      as light source.
+    * Calculate the brightness model at all intersections. Eventually this will include shaders.
+    * Calculate latitude and longitude at all intersections
+    * Interpolate the texture map using latitude and longitude
+    * Scale the texture color by the brightness. This is the color for each pixel that has an intersection
+    * For pixels with intersections, overwrite the frame buffer color with the calculated color. Don't for
+      pixels with no intersections.
+    """
+    top_half=_draw_planet_top_half(
+                    down_u=down_u,
+                    right_u=right_u,
+                    direction_u=direction_u,
+                    ellipsoid_spice_id=ellipsoid_spice_id,
+                    view_spice_id=view_spice_id,
+                    light_spice_id=light_spice_id,
+                    et=et,
+                    shadow_casters_spice_ids=shadow_casters_spice_ids,
+                    universe_frame=universe_frame,
+                    r_viewpoint_b=r_viewpoint_b,
+                    r_light_b=r_light_b,
+                    M_bu=M_bu
+    )
+    _draw_planet_bottom_half(frame_buffer,texture_map,extra_rot,*top_half)
 
 
 def draw_planets(*,
@@ -238,22 +271,22 @@ def draw_planets(*,
     ellipsoid_distances=[vlength(spkezr(str(id),et,"IAU_"+bodc2n(id).upper(),"LT+S",str(view_spice_id))[0][:3]) for id in ellipsoid_spice_ids]
     pairs=list(zip(ellipsoid_distances,ellipsoid_spice_ids))
     pairs.sort(reverse=True)
-    sorted_ids=[id for _,id in pairs]
+    sorted_ids=[ellipsoid_spice_id for _,ellipsoid_spice_id in pairs]
     id_set=set(sorted_ids)
     # * For each ellipsoid in distance order from far to near:
-    for id in sorted_ids:
+    for ellipsoid_spice_id in sorted_ids:
         # *    Make a set of shaders that includes all ellipsoids except for this one
-        shaders=id_set-{id}
+        shaders=id_set-{ellipsoid_spice_id}
         # *    use draw_planet() to draw the ellipsoid
         _draw_planet(frame_buffer=frame_buffer,
                     down_u=down_u,
                     right_u=right_u,
                     direction_u=direction_u,
-                    ellipsoid_spice_id=id,
+                    ellipsoid_spice_id=ellipsoid_spice_id,
                     view_spice_id=view_spice_id,
                     light_spice_id=light_spice_id,
                     et=et,
                     shadow_casters_spice_ids=shaders,
                     universe_frame=universe_frame,
-                    texture_map=texture_maps[id],
-                    extra_rot=extra_rots[id] if id in extra_rots else 0)
+                    texture_map=texture_maps[ellipsoid_spice_id],
+                    extra_rot=extra_rots[ellipsoid_spice_id] if ellipsoid_spice_id in extra_rots else 0)
