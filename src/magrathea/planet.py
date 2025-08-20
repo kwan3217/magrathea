@@ -10,7 +10,15 @@ from kwanmath.geodesy import xyz2lla
 from spiceypy import spkezr, bodc2n, pxform, gdpool
 
 
-def draw_planet(*,
+def _draw_planet_top_half():
+    pass
+
+
+def _draw_planet_bottom_half():
+    pass
+
+
+def _draw_planet(*,
                 frame_buffer:np.ndarray,
                 down_u:np.ndarray,
                 right_u:np.ndarray,
@@ -90,10 +98,21 @@ def draw_planet(*,
         et_ellipsoid=et-lt_ellipsoid
         M_bu=pxform(universe_frame,body_frame,et_ellipsoid)
 
+    # * Calculate the position of the light source at ET-LT using LT+S, with observer as ellipsoid center and target
+    #   as light source.
+    if r_light_b is None:
+        x_light_b,_=spkezr(str(light_spice_id),et_ellipsoid,body_frame,"LT+S",str(ellipsoid_spice_id))
+        r_light_b=x_light_b[:3].reshape(-1,1)
+
     # * Transform the camera vectors into the ellipsoid body frame
     down_b=M_bu@down_u
     right_b=M_bu@right_u
     direction_b=M_bu@direction_u
+
+    # ellipsoid normalization vector
+    r_e,_,r_p=gdpool(f"BODY{ellipsoid_spice_id}_RADII",0,3)
+    n=np.array([[r_e],[r_e],[r_p]])
+    n2=n*n
 
 
     # From here down, all calculations are done in the ellipsoid body frame
@@ -110,8 +129,6 @@ def draw_planet(*,
     v_b=down_b*y_n+right_b*x_n+direction_b
 
     # * Solve the ray-ellipsoid intersection for all rays
-    r_e,_,r_p=gdpool(f"BODY{ellipsoid_spice_id}_RADII",0,3)
-    n=np.array([[r_e],[r_e],[r_p]])
     R0n=r_viewpoint_b/n
     Vn=v_b/n
     A=vdot(Vn,Vn)
@@ -152,14 +169,9 @@ def draw_planet(*,
     # normal for this surface at F=1. The gradient of F is normal to all its level surfaces, so we want the gradient
     # at this point. The gradient is [[dF/dx],[dF/dy],[dF/dz]] so we have N=[[2x/r_e**2],[2y/r_e**2],[2z/r_p**2]]=2*R./[[r_e**2],[r_e**2],[r_p**2]]
     # We only care about the direction, so normalize the normal vector.
-    N=2*r_surf_b/np.array([[r_e**2],[r_e**2],[r_p**2]])
+    N=2*r_surf_b/n2
     Nlen=np.sqrt(vdot(N,N)[:,None,:])
     Nhat=N/Nlen
-    # * Calculate the position of the light source at ET-LT using LT+S, with observer as ellipsoid center and target
-    #   as light source.
-    if r_light_b is None:
-        x_light_b,_=spkezr(str(light_spice_id),et_ellipsoid,body_frame,"LT+S",str(ellipsoid_spice_id))
-        r_light_b=x_light_b[:3].reshape(-1,1)
     # * Calculate the brightness model at all intersections. Eventually this will include shaders.
     L=r_light_b-r_surf_b
     Llen=np.sqrt(vdot(L,L)[:,None,:])
@@ -233,7 +245,7 @@ def draw_planets(*,
         # *    Make a set of shaders that includes all ellipsoids except for this one
         shaders=id_set-{id}
         # *    use draw_planet() to draw the ellipsoid
-        draw_planet(frame_buffer=frame_buffer,
+        _draw_planet(frame_buffer=frame_buffer,
                     down_u=down_u,
                     right_u=right_u,
                     direction_u=direction_u,
