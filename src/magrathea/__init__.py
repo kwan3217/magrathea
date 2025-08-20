@@ -15,3 +15,6 @@ Created: 8/19/25
 
 from .planet import planet, planets
 from .stage import stage
+from .stars.starcat import load_stars
+from .stars.stardraw import draw_star
+
