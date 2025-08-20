@@ -10,7 +10,7 @@ from matplotlib import pyplot as plt
 from scipy.interpolate import interp1d
 from spiceypy import furnsh, str2et, spkezr
 
-from magrathea import draw_planets, stage
+from magrathea import draw_planets, stage, draw_stars, load_stars
 
 # Closest approach on calendar
 cal_ca="1979-03-05 12:05:26 TDB"
@@ -79,6 +79,7 @@ def main():
                     502: plt.imread("data/textures/EuropaMap.png"),
                     503: plt.imread("data/textures/GanymedeMap.png"),
                     504: plt.imread("data/textures/CallistoMap.png")}
+    stars=load_stars(frame=univ_frame)
     extra_rots = {599: -16}
     et_ca=str2et(cal_ca)
     # from frame 1212, which includes Jupiter, Io in foreground, and one more moon (Europa?) in the background
@@ -100,6 +101,11 @@ def main():
                                y_d=f_yd(frame_number)
                                )
         frame_buffer=np.zeros([1080,1440,3])
+        draw_stars(frame_buffer=frame_buffer,stars=stars,
+                   down_u=frame_stage.down_u,
+                   right_u=frame_stage.right_u,
+                   direction_u=frame_stage.direction_u
+                   )
         draw_planets(frame_buffer=frame_buffer,
                      down_u=frame_stage.down_u,
                      right_u=frame_stage.right_u,

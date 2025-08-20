@@ -7,7 +7,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from spiceypy import furnsh
 
-from magrathea import load_stars, draw_star
+from magrathea import load_stars, draw_stars
 
 
 def main():
@@ -20,9 +20,8 @@ def main():
     stars=load_stars(frame=univ_frame)
     print(len(stars))
     frame_buffer = np.zeros([1080, 1440, 3])
-    draw_star(frame_buffer=frame_buffer,
-              v_u=stars[50][0],
-              color=stars[50][1],
+    draw_stars(frame_buffer=frame_buffer,
+              stars=stars,
               right_u=np.array([[1.0],[0.0],[0.0]])*4/3,
               down_u=np.array([[0.0],[1.0],[0.0]]),
               direction_u=np.array([[0.0],[0.0],[1.0]])
