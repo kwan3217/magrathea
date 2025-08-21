@@ -13,7 +13,7 @@ Main functions:
 Created: 8/19/25
 """
 
-from .planet import draw_planets
+from .planet.planet import draw_planets
 from .stage import stage
 from .stars.starcat import load_stars
 from .stars.stardraw import draw_stars

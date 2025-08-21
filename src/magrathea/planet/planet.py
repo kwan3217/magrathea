@@ -12,7 +12,7 @@ from kwanmath.geodesy import xyz2lla
 from numpy.typing import NDArray
 from spiceypy import spkezr, bodc2n, pxform, gdpool
 
-from magrathea.draw_planet_bottom_cy import py_draw_planet_bottom
+from magrathea.planet.draw_planet_bottom_cy import py_draw_planet_bottom
 
 
 def _draw_planet_top_half(*,
