@@ -74,15 +74,19 @@ def main():
     furnsh("data/spice/lsk/naif0012.tls")
     furnsh("data/spice/pck/pck00011.tpc")
     furnsh("data/spice/pck/jupiter_system2.tpc")
+    n_rows=480
+    n_cols=640
     texture_maps = {599: (1*plt.imread("data/textures/JupiterMap.png")).astype(np.float64),
                     501: (1*plt.imread("data/textures/IoMap.png")).astype(np.float64),
                     502: (1*plt.imread("data/textures/EuropaMap.png")).astype(np.float64),
                     503: (1*plt.imread("data/textures/GanymedeMap.png")).astype(np.float64),
-                    504: (1*plt.imread("data/textures/CallistoMap.png")).astype(np.float64)}
+                    504: (1*plt.imread("data/textures/CallistoMap.png")).astype(np.float64),
+                    }
     stars=load_stars(frame=univ_frame)
     extra_rots = {599: -16}
     et_ca=str2et(cal_ca)
     # from frame 1212, which includes Jupiter, Io in foreground, and one more moon (Europa?) in the background
+    #for frame_number in range(330,2185):
     for frame_number in range(1210,1220):
         print(frame_number)
         et=float(f_et(frame_number)) #1979-03-04 20:28:31.788 ET, J-15:36:54.211
@@ -100,7 +104,7 @@ def main():
                                x_d=f_xd(frame_number),
                                y_d=f_yd(frame_number)
                                )
-        frame_buffer=np.zeros([1080,1440,3],dtype=np.float64)
+        frame_buffer=np.zeros([n_rows,n_cols,3],dtype=np.float64)
         draw_stars(frame_buffer=frame_buffer,stars=stars,
                    down_u=frame_stage.down_u,
                    right_u=frame_stage.right_u,
@@ -114,12 +118,14 @@ def main():
                      et=et,
                      universe_frame=univ_frame,
                      texture_maps=texture_maps,
-                     extra_rots=extra_rots)
-        #plt.clf()
-        #plt.imshow(frame_buffer)
-        #plt.title(f"Frame {frame_number}")
-        #plt.pause(0.01)
-    #plt.show()
+                     extra_rots=extra_rots,
+                     use_c=False)
+        plt.imsave(f"data/output/v1j/frame_{frame_number:04d}.png",np.clip(frame_buffer,0.0,1.0))
+        plt.clf()
+        plt.imshow(frame_buffer)
+        plt.title(f"Frame {frame_number}")
+        plt.pause(0.01)
+    plt.show()
 
 
 if __name__ == "__main__":
