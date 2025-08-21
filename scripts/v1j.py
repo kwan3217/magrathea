@@ -74,11 +74,12 @@ def main():
     furnsh("data/spice/lsk/naif0012.tls")
     furnsh("data/spice/pck/pck00011.tpc")
     furnsh("data/spice/pck/jupiter_system2.tpc")
-    texture_maps = {599: plt.imread("data/textures/JupiterMap.png"),
-                    501: plt.imread("data/textures/IoMap.png"),
-                    502: plt.imread("data/textures/EuropaMap.png"),
-                    503: plt.imread("data/textures/GanymedeMap.png"),
-                    504: plt.imread("data/textures/CallistoMap.png")}
+    texture_maps = {599: (1*plt.imread("data/textures/JupiterMap.png")).astype(np.float64),
+                    #501: (1*plt.imread("data/textures/IoMap.png")).astype(np.float64),
+                    #502: (1*plt.imread("data/textures/EuropaMap.png")).astype(np.float64),
+                    #503: (1*plt.imread("data/textures/GanymedeMap.png")).astype(np.float64),
+                    #504: (1*plt.imread("data/textures/CallistoMap.png")).astype(np.float64)}
+                    }
     stars=load_stars(frame=univ_frame)
     extra_rots = {599: -16}
     et_ca=str2et(cal_ca)
@@ -100,7 +101,7 @@ def main():
                                x_d=f_xd(frame_number),
                                y_d=f_yd(frame_number)
                                )
-        frame_buffer=np.zeros([1080,1440,3])
+        frame_buffer=np.zeros([1080,1440,3],dtype=np.float64)
         draw_stars(frame_buffer=frame_buffer,stars=stars,
                    down_u=frame_stage.down_u,
                    right_u=frame_stage.right_u,
@@ -114,7 +115,8 @@ def main():
                      et=et,
                      universe_frame=univ_frame,
                      texture_maps=texture_maps,
-                     extra_rots=extra_rots)
+                     extra_rots=extra_rots,
+                     use_c=True)
         #plt.clf()
         #plt.imshow(frame_buffer)
         #plt.title(f"Frame {frame_number}")

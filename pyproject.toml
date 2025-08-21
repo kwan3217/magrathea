@@ -1,5 +1,9 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = [
+    "setuptools>=61.0",
+    "Cython>=0.29.36",
+    "numpy>=1.23.0"
+]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -7,18 +11,25 @@ name = "magrathea"
 version = "0.1.0"
 description = "A Python project template for the magrathea repository."
 authors = [
-  { name="Your Name", email="your.email@example.com" }
+    { name = "Your Name", email = "your.email@example.com" }
 ]
 readme = "README.md"
 requires-python = ">=3.11"
-license = { file="LICENSE" }
+license = { file = "LICENSE" }
 dependencies = [
-    # Add your project dependencies here
-  "spiceypy",
-  "matplotlib",
-  "pytest",
-  "kwanmath @ git+ssh://git@github.com/kwan3217/kwanmath.git",
+    "spiceypy",
+    "matplotlib",
+    "pytest",
+    "kwanmath @ git+ssh://git@github.com/kwan3217/kwanmath.git",
+    "Cython>=0.29.36",
+    "numpy>=1.23.0"
 ]
 
 [tool.setuptools]
-package-dir = {"" = "src"}
+package-dir = { "" = "src" }
+
+[tool.setuptools.package-data]
+magrathea = ["*.h", "*.pyx"]
+
+[tool.cython]
+language_level = 3
