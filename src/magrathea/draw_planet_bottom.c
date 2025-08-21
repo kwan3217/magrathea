@@ -63,11 +63,8 @@ int draw_planet_bottom(
     const double n2[3],
     const double r_light_b[3]
 ) {
-    printf("rows_fb: %d\n",rows_fb);
-    printf("cols_fb: %d\n",cols_fb);
     double R0n[3];
     for(int i=0;i<3;i++) R0n[i]=r_viewpoint_b[i]/n[i];
-    printf("r_viewpoint_b: <%f,%f,%f>\n",r_viewpoint_b[0],r_viewpoint_b[1],r_viewpoint_b[2]);
     for (int i_row = 0; i_row < rows_fb; i_row++) {
         double y_n=linterp(0,-0.5,rows_fb,0.5,i_row);
         for (int i_col = 0; i_col < cols_fb; i_col++) {
@@ -77,30 +74,19 @@ int draw_planet_bottom(
                 and v is calculated as a linear combination of down_b, right_b, and direction_b using normalized
                 image coordinates ranging from -0.5 on top and left to +0.5 on bottom and right. */
             double x_n=linterp(0,-0.5,cols_fb,0.5,i_col);
-            if (i_col==20 && i_row==15) printf("x_n: %f\n",x_n);
-            if (i_col==20 && i_row==15) printf("y_n: %f\n",y_n);
             double v_b[3];
             for(int i=0;i<3;i++) v_b[i]=down_b[i]*y_n+right_b[i]*x_n+direction_b[i];
-            if (i_col==20 && i_row==15) printf("v_b: <%f,%f,%f>\n",v_b[0],v_b[1],v_b[2]);
-            if (i_col==20 && i_row==15) printf("R0n: <%f,%f,%f>\n",R0n[0],R0n[1],R0n[2]);
 
             /*(* Solve the ray-ellipsoid intersection for all rays */
             double Vn[3];
             for(int i=0;i<3;i++) Vn[i]=v_b[i]/n[i];
-            if (i_col==20 && i_row==15) printf("Vn: <%f,%f,%f>\n",Vn[0],Vn[1],Vn[2]);
             double A=vdot(Vn,Vn);
-            if (i_col==20 && i_row==15) printf("A: %e\n",A);
             double B=2*vdot(R0n,Vn);
-            if (i_col==20 && i_row==15) printf("B: %e\n",B);
             double C=vdot(R0n,R0n)-1;
-            if (i_col==20 && i_row==15) printf("C: %e\n",C);
             double D=B*B-4*A*C;
-            if (i_col==20 && i_row==15) printf("D: %e\n",D);
             if(D<0) continue;
             double tp=(-B+sqrt(D))/(2*A);
-            if (i_col==20 && i_row==15) printf("tp: %e\n",tp);
             double tm=(-B-sqrt(D))/(2*A);
-            if (i_col==20 && i_row==15) printf("tm: %e\n",tm);
             if(tp<0 && tm<0) continue;
             double t;
             if(tp>0 && tp<tm) {
@@ -108,12 +94,10 @@ int draw_planet_bottom(
             } else {
                 t=tm;
             }
-            if (i_col==20 && i_row==15) printf("t: %e\n",t);
 
             /** Calculate the normal vector at all intersections */
             double r_surf_b[3];
             for(int i=0;i<3;i++) r_surf_b[i]=r_viewpoint_b[i]+v_b[i]*t;
-            if (i_col==20 && i_row==15) printf("r_surf_b: <%f,%f,%f>\n",r_surf_b[0],r_surf_b[1],r_surf_b[2]);
 
             /* The ellipsoid is a level surface of the function F(x,y,z)=(x/r_e)**2+(y/r_e)**2+(z/r_p)**2, and we want the
                normal for this surface at F=1. The gradient of F is normal to all its level surfaces, so we want the gradient
@@ -143,8 +127,6 @@ int draw_planet_bottom(
             //cols_tm=texture_map.shape[1] # number of rows
             int x_tex=(int)(linterp(0.0,0.0,360.0,cols_tm-1,wrap_angle(lon+extra_rot)));  //RIP Ariane 5 Flight 1
             int y_tex=(int)(linterp(90.0,0.0,-90.0,rows_tm-1,lat));
-            if (i_col==20 && i_row==15) printf("x_tex: %d\n",x_tex);
-            if (i_col==20 && i_row==15) printf("y_tex: %d\n",y_tex);
             /** Scale the texture color by the brightness. This is the color for each pixel that has an intersection
               * For pixels with intersections, overwrite the frame buffer color with the calculated color. Pixels with
                 no intersections have already taken an early exit */
