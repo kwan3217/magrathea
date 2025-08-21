@@ -28,7 +28,10 @@ def py_draw_planet_bottom(
     np.ndarray[np.float64_t, ndim=2] r_viewpoint_b not None,
     np.ndarray[np.float64_t, ndim=2] n not None,
     np.ndarray[np.float64_t, ndim=2] n2 not None,
-    np.ndarray[np.float64_t, ndim=2] r_light_b not None
+    np.ndarray[np.float64_t, ndim=2] r_light_b not None,
+    double rr_light,
+    np.ndarray[np.float64_t, ndim=2] rs_caster_b not None,
+    np.ndarray[np.float64_t, ndim=1] rrs_caster not None
 ):
     # Validate shapes
     #if (right_b.shape != (3,1) or down_b.shape != (3,1) or direction_b.shape != (3,1) or

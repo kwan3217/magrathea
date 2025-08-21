@@ -119,7 +119,7 @@ def main():
                      universe_frame=univ_frame,
                      texture_maps=texture_maps,
                      extra_rots=extra_rots,
-                     use_c=False)
+                     use_c=True)
         plt.imsave(f"data/output/v1j/frame_{frame_number:04d}.png",np.clip(frame_buffer,0.0,1.0))
         plt.clf()
         plt.imshow(frame_buffer)
