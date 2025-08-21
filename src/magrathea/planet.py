@@ -3,9 +3,11 @@ Draw an ellipsoid into a frame buffer
 
 Created: 8/18/25
 """
+from typing import Collection
+
 import numpy as np
 from kwanmath.interp import linterp
-from kwanmath.vector import vdot, vlength
+from kwanmath.vector import vdot, vlength, vangle
 from kwanmath.geodesy import xyz2lla
 from numpy.typing import NDArray
 from spiceypy import spkezr, bodc2n, pxform, gdpool
@@ -21,10 +23,11 @@ def _draw_planet_top_half(*,
                 view_spice_id:int,
                 light_spice_id:int=10,
                 et:float,
-                shadow_casters_spice_ids:list[int]=None,
+                shadow_casters_spice_ids:Collection[int]=None,
                 universe_frame:str="J2000",
                 r_viewpoint_b:np.ndarray=None,
                 r_light_b:np.ndarray=None,
+                rr_light:float=None,
                 M_bu:np.ndarray=None)->tuple:
     # * Use spkezr to calculate the position of the ellipsoid relative to the viewpoint. Reverse this vector
     #   to get the position of the viewpoint relative to the ellipsoid. We do it this way because neither LT+S
@@ -50,6 +53,7 @@ def _draw_planet_top_half(*,
     if r_light_b is None:
         x_light_b,_=spkezr(str(light_spice_id),et_ellipsoid,body_frame,"LT+S",str(ellipsoid_spice_id))
         r_light_b=x_light_b[:3].reshape(-1,1)
+        rr_light, = gdpool(f"BODY{light_spice_id}_RADII", 0, 1)
 
     # * Transform the camera vectors into the ellipsoid body frame
     down_b=M_bu@down_u
@@ -60,7 +64,87 @@ def _draw_planet_top_half(*,
     r_e,_,r_p=gdpool(f"BODY{ellipsoid_spice_id}_RADII",0,3)
     n=np.array([[r_e],[r_e],[r_p]])
     n2=n*n
-    return right_b,down_b,direction_b,r_viewpoint_b,n,n2,r_light_b
+
+    # Shadow casters
+    if shadow_casters_spice_ids is not None and len(shadow_casters_spice_ids)>0:
+        rs_caster_b=np.zeros((3,len(shadow_casters_spice_ids)))
+        rrs_caster=np.zeros(len(shadow_casters_spice_ids))
+        for i,caster_id in enumerate(shadow_casters_spice_ids):
+            rrs_caster[i], = gdpool(f"BODY{caster_id}_RADII", 0, 1)
+            x_caster_b, _ = spkezr(str(caster_id), et_ellipsoid, body_frame, "LT+S", str(ellipsoid_spice_id))
+            r_caster_b = x_caster_b[:3].reshape(-1, 1)
+            rs_caster_b[:,None,i]=r_caster_b
+    else:
+        rs_caster_b=np.zeros((3,0))
+        rrs_caster=np.zeros((0,))
+    return right_b,down_b,direction_b,r_viewpoint_b,n,n2,r_light_b,rr_light,rs_caster_b,rrs_caster
+
+
+def _cast_shadow(*,
+                 shade:np.ndarray,
+                 r_view_b:np.ndarray,
+                 r_light_b: np.ndarray,
+                 rr_light: float,
+                 r_caster_b: np.ndarray,
+                 rr_caster: float
+                 ):
+    """
+    Cast a shadow on a set of points
+    :param shade: M,N array of shade values, originally all 1.0. This code can scale down any value in this array
+                  to indicate shade. 1=100% lighting, 0=0% lighting. May be NaN if r_view_b is NaN at this pixel.
+    :param r_view_b: M,3,N array of points that may be shaded. Any point
+                   *may* be [[NaN],[NaN],[NaN]] and this must be handled.
+    :param r_light_b: 3,1 column vector position of Sun
+    :param rr_light: radius of sun
+    :param rs_caster_b: 3,1 column vector position of shadow caster
+    :param rr_caster: radius of caster
+    All distance units, for vector components and sphere radii, must be consistent. Spice will naturally be in km.
+    """
+    # Vector from view to caster and to light
+    dr_light=r_light_b-r_view_b
+    dr_caster=r_caster_b-r_view_b
+    # angle between caster and light
+    alpha_sep=vangle(dr_light,dr_caster)
+    # Distance to light and caster
+    d_light=vlength(dr_light)
+    d_caster=vlength(dr_caster)
+    # half angle of light and caster
+    theta_light=np.acos(np.sqrt(1-rr_light**2/d_light**2))
+    theta_caster=np.acos(np.sqrt(1-rr_caster**2/d_caster**2))
+    # Points off the surface will be NaN, so shade then NaN too
+    nan_mask=np.isnan(alpha_sep)
+    shade[nan_mask]=np.nan
+    # Points with any shadow at all, total annular or partial
+    occlusion_mask=(alpha_sep<theta_light+theta_caster)
+    # Points totally eclipsed -- caster is larger than light source
+    total_mask = occlusion_mask & (theta_caster >= theta_light) & (alpha_sep <= theta_caster - theta_light)
+    shade[total_mask] = 0.0  # full shadow
+    # Points annularly eclipsed -- caster is smaller and completely inside light source
+    annular_mask = occlusion_mask & (theta_caster < theta_light) & (alpha_sep <= theta_light - theta_caster)
+    shade[annular_mask] *= 1.0 - (theta_caster[annular_mask] / theta_light[annular_mask]) ** 2
+    # Complicated case -- points partially eclipsed.
+    partial_mask = occlusion_mask & ~total_mask & ~annular_mask
+
+    # Precompute terms for A (vectorized over partial pixels)
+    d = alpha_sep[partial_mask]  # separation
+    r1 = theta_light[partial_mask]  # light half-angle
+    r2 = theta_caster[partial_mask]  # caster half-angle
+
+    # Clamp for arccos stability
+    arg1 = np.clip((d**2 + r1**2 - r2**2) / (2 * d * r1), -1.0, 1.0)
+    arg2 = np.clip((d**2 + r2**2 - r1**2) / (2 * d * r2), -1.0, 1.0)
+
+    term1 = r1**2 * np.arccos(arg1)
+    term2 = r2**2 * np.arccos(arg2)
+    term3 = 0.5 * np.sqrt((-d + r1 + r2) * (d + r1 - r2) * (d - r1 + r2) * (d + r1 + r2))
+
+    A = term1 + term2 - term3
+
+    # Obscured fraction f = A / (pi * theta_light^2)
+    f_partial = A / (np.pi * r1**2)
+
+    # Update lighting
+    shade[partial_mask] *= 1.0 - f_partial
 
 
 def _draw_planet_bottom_half(frame_buffer:NDArray[np.uint8],
@@ -72,7 +156,10 @@ def _draw_planet_bottom_half(frame_buffer:NDArray[np.uint8],
                              r_viewpoint_b:np.ndarray,
                              n:np.ndarray,
                              n2:np.ndarray,
-                             r_light_b:np.ndarray):
+                             r_light_b:np.ndarray,
+                             rr_light:float,
+                             rs_caster_b:np.ndarray,
+                             rrs_caster:np.ndarray):
     # From here down, all calculations are done in the ellipsoid body frame
 
     # * Use the camera vectors to generate rays for all pixels. The r0 is the viewpoint in the body frame,
@@ -145,13 +232,23 @@ def _draw_planet_bottom_half(frame_buffer:NDArray[np.uint8],
     N=2*r_surf_b/n2
     Nlen=np.sqrt(vdot(N,N)[:,None,:])
     Nhat=N/Nlen
-    # * Calculate the brightness model at all intersections. Eventually this will include shaders.
+    # * Calculate the brightness model at all intersections.
     L=r_light_b-r_surf_b
     Llen=np.sqrt(vdot(L,L)[:,None,:])
     Lhat=L/Llen #Direction from point on surface to light source
-    lambert=0.9*np.maximum(0,vdot(Lhat,Nhat))
+    lambert=np.maximum(0,vdot(Lhat,Nhat))
+    shade=np.ones(D.shape)
+    for i_caster,rr_caster in enumerate(rrs_caster):
+        r_caster_b=rs_caster_b[:,None,i_caster]
+        _cast_shadow(shade=shade,
+                     r_view_b=r_surf_b,
+                     r_light_b=r_light_b,
+                     rr_light=rr_light,
+                     r_caster_b=r_caster_b,
+                     rr_caster=rr_caster)
+    diffuse=0.9*(lambert*shade)
     ambient=0.1
-    bright=lambert+ambient
+    bright=diffuse+ambient
     # * Calculate latitude and longitude at all intersections
     lat,lon,_=xyz2lla(centric=False,deg=True,xyz=r_surf_b,re=n[0],rp=n[2],east=True)
     # * Interpolate the texture map using latitude and longitude
@@ -172,7 +269,7 @@ def _draw_planet_bottom_half(frame_buffer:NDArray[np.uint8],
 
 
 def _draw_planet(*,
-                frame_buffer:NDArray[np.uint8],
+                frame_buffer:NDArray[np.float64],
                 down_u:np.ndarray,
                 right_u:np.ndarray,
                 direction_u:np.ndarray,
@@ -182,7 +279,7 @@ def _draw_planet(*,
                 et:float,
                 shadow_casters_spice_ids:list[int]=None,
                 universe_frame:str="J2000",
-                texture_map:np.ndarray,
+                texture_map:NDArray[np.float64],
                 r_viewpoint_b:np.ndarray=None,
                 r_light_b:np.ndarray=None,
                 M_bu:np.ndarray=None,
