@@ -13,7 +13,9 @@ int draw_planet_bottom(
     const double r_viewpoint_b[3],
     const double n[3],    // Ellipsoid radii: [r_e, r_e, r_p]
     const double n2[3],   // Squared radii: [r_e^2, r_e^2, r_p^2]
-    const double r_light_b[3]
+    const double r_light_b[3],
+    const double rr_light,
+    const double *rs_caster_b, const double *rrs_caster, int n_casters
 );
 
 #endif

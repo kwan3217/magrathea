@@ -1,4 +1,5 @@
 #include "draw_planet_bottom.h"
+#include "shadow.h"
 #include <math.h>
 #include <stdio.h>
 
@@ -61,7 +62,9 @@ int draw_planet_bottom(
     const double r_viewpoint_b[3],
     const double n[3],
     const double n2[3],
-    const double r_light_b[3]
+    const double r_light_b[3],
+    const double rr_light,
+    const double *rs_caster_b, const double *rrs_caster, int n_casters
 ) {
     double R0n[3];
     for(int i=0;i<3;i++) R0n[i]=r_viewpoint_b[i]/n[i];
@@ -108,16 +111,30 @@ int draw_planet_bottom(
             double Nlen=sqrt(vdot(N,N));
             double Nhat[3];
             for(int i=0;i<3;i++) Nhat[i]=N[i]/Nlen;
-            /** Calculate the brightness model at all intersections. Eventually this will include shadow casters. */
+            /** Calculate the brightness model at all intersections */
             double L[3];
             for(int i=0;i<3;i++) L[i]=r_light_b[i]-r_surf_b[i];
             double Llen=sqrt(vdot(L,L));
             double Lhat[3];
             for(int i=0;i<3;i++) Lhat[i]=L[i]/Llen; //Direction from point on surface to light source
             double dot= vdot(Lhat,Nhat);
-            double lambert=0.9*(dot>0?dot:0);
+            double lambert=(dot>0?dot:0);
+            double shade=1.0;
+            for(int i_caster=0;i_caster<n_casters;i_caster++) {
+               double r_caster_b[3];for(int i_comp=0;i_comp<3;i_comp++) r_caster_b[i_comp]=rs_caster_b[i_comp*n_casters+i_caster];
+               double rr_caster=rrs_caster[i_caster];
+               cast_shadow(&shade,
+                     r_surf_b,
+                     r_light_b,
+                     rr_light,
+                     r_caster_b,
+                     rr_caster,
+                     (i_row==214) && (i_col==230));
+
+            }
+            double diffuse=0.9*lambert*shade;
             double ambient=0.1;
-            double bright=lambert+ambient;
+            double bright=diffuse+ambient;
             /** Calculate latitude and longitude at all intersections */
             double lat,lon; // both in degrees
             //lat,lon,_=xyz2lla(centric=False,deg=True,xyz=r_surf_b,re=n[0],rp=n[2],east=True)

@@ -8,7 +8,8 @@ ext_modules = [
         name="magrathea.planet.draw_planet_bottom_cy",
         sources=[
             "src/magrathea/planet/draw_planet_bottom_cy.pyx",
-            "src/magrathea/planet/draw_planet_bottom.c"
+            "src/magrathea/planet/draw_planet_bottom.c",
+            "src/magrathea/planet/shadow.c"
         ],
         include_dirs=[np.get_include()],
         extra_compile_args=["-O3", "-g"]

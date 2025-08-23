@@ -15,7 +15,9 @@ cdef extern from "draw_planet_bottom.h":
         const double r_viewpoint_b[3],
         const double n[3],
         const double n2[3],
-        const double r_light_b[3]
+        const double r_light_b[3],
+        const double rr_light,
+        const uint8_t *rs_caster_b, const uint8_t *rrs_caster, int n_casters
     )
 
 def py_draw_planet_bottom(
@@ -46,6 +48,7 @@ def py_draw_planet_bottom(
     cdef int cols_fb = frame_buffer.shape[1]
     cdef int rows_tm = texture_map.shape[0]
     cdef int cols_tm = texture_map.shape[1]
+    cdef int n_casters=rrs_caster.shape[0]
 
     # Flatten 2D (3,1) arrays to 1D for C
     cdef double[3] right_b_flat
@@ -75,7 +78,9 @@ def py_draw_planet_bottom(
         r_viewpoint_b_flat,
         n_flat,
         n2_flat,
-        r_light_b_flat
+        r_light_b_flat,
+        rr_light,
+        <uint8_t*> rs_caster_b.data, <uint8_t*>rrs_caster.data,n_casters
     )
 
     if result != 0:
