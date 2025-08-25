@@ -167,37 +167,24 @@ def _draw_planet_bottom_half(frame_buffer:NDArray[np.uint8],
     #   image coordinates ranging from -0.5 on top and left to +0.5 on bottom and right.
     rows_fb=frame_buffer.shape[0] # number of columns
     cols_fb=frame_buffer.shape[1] # number of rows
-    print(f"rows_fb: {rows_fb}")
-    print(f"cols_fb: {cols_fb}")
     # we want the camera vectors to be shape M,3,N. One plane of vectors 3,M represents one row
     # So we shape these so that they broadcast
     x_n=np.linspace(-0.5,0.5,cols_fb,endpoint=False).reshape( 1,1,-1)
-    print(f"x_n: {x_n[0,0,20]}")
     y_n=np.linspace(-0.5,0.5,rows_fb,endpoint=False).reshape(-1,1, 1)
-    print(f"y_n: {y_n[15,0,0]}")
     v_b=down_b*y_n+right_b*x_n+direction_b
-    print(f"v_b: <{v_b[15,0,20]},{v_b[15,1,20]},{v_b[15,2,20]}>")
 
     # * Solve the ray-ellipsoid intersection for all rays
     R0n=r_viewpoint_b/n
-    print(f"R0n: <{R0n[0,0]},{R0n[1,0]},{R0n[2,0]}>")
     Vn=v_b/n
-    print(f"Vn: <{Vn[15,0,20]},{Vn[15,1,20]},{Vn[15,2,20]}>")
     A=vdot(Vn,Vn)
-    print(f"A: {A[15,20]:e}")
     B=2*vdot(R0n,Vn)
-    print(f"B: {B[15,20]:e}")
     C=vdot(R0n,R0n)-1
-    print(f"C: {C:e}")
     D=B**2-4*A*C
-    print(f"D: {D[15,20]:e}")
     with np.errstate(invalid='ignore'):
         # Points that are off-disk take the square root of a negative and return NaN. This is correct and expected.
         # Put this in an ignore to ignore this specific warning
         tp=(-B+np.sqrt(D))/(2*A)
-        print(f"tp: {tp[15,20]:e}")
         tm=(-B-np.sqrt(D))/(2*A)
-        print(f"tm: {tm[15,20]:e}")
     def choose_root(root1,root2):
         # Create a mask for positive roots
         pos1 = root1 > 0
@@ -221,10 +208,8 @@ def _draw_planet_bottom_half(frame_buffer:NDArray[np.uint8],
         # Case 4: Both negative or both NaN -> result remains NaN
         return result
     t=choose_root(tp,tm)
-    print(f"tm: {tm[15, 20]:e}")
     # * Calculate the normal vector at all intersections
     r_surf_b=r_viewpoint_b+v_b*t[:,None,:]
-    print(f"r_surf_b: <{r_surf_b[15,0,20]},{r_surf_b[15,1,20]},{r_surf_b[15,2,20]}>")
     # The ellipsoid is a level surface of the function F(x,y,z)=(x/r_e)**2+(y/r_e)**2+(z/r_p)**2, and we want the
     # normal for this surface at F=1. The gradient of F is normal to all its level surfaces, so we want the gradient
     # at this point. The gradient is [[dF/dx],[dF/dy],[dF/dz]] so we have N=[[2x/r_e**2],[2y/r_e**2],[2z/r_p**2]]=2*R./[[r_e**2],[r_e**2],[r_p**2]]
@@ -260,8 +245,6 @@ def _draw_planet_bottom_half(frame_buffer:NDArray[np.uint8],
         # Put this in an ignore to ignore this specific warning
         x_tex=linterp(0.0,0.0,360.0,cols_tm-1,(lon+extra_rot)%360.0).astype(np.uint16)  #RIP Ariane 5 Flight 1
         y_tex=linterp(90.0,0.0,-90.0,rows_tm-1,lat).astype(np.uint16)
-    print(f"x_tex: {x_tex[15, 20]}")
-    print(f"t_tex: {y_tex[15, 20]}")
     # * Scale the texture color by the brightness. This is the color for each pixel that has an intersection
     # * For pixels with intersections, overwrite the frame buffer color with the calculated color. Don't for
     #   pixels with no intersections.

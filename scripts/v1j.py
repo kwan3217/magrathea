@@ -10,7 +10,9 @@ from matplotlib import pyplot as plt
 from scipy.interpolate import interp1d
 from spiceypy import furnsh, str2et, spkezr
 
-from magrathea import draw_planets, stage, draw_stars, load_stars
+from magrathea import draw_planets, stage, draw_stars, load_stars, draw_sun
+from magrathea.stage import double_stage
+from magrathea.stars.stardraw import _DEFAULT_SIG_X,_DEFAULT_SIG_Y
 
 # Closest approach on calendar
 cal_ca="1979-03-05 12:05:26 TDB"
@@ -74,8 +76,9 @@ def main():
     furnsh("data/spice/lsk/naif0012.tls")
     furnsh("data/spice/pck/pck00011.tpc")
     furnsh("data/spice/pck/jupiter_system2.tpc")
-    n_rows=480
-    n_cols=640
+    scale=4
+    n_rows=480*scale
+    n_cols=640*scale
     texture_maps = {599: (1*plt.imread("data/textures/JupiterMap.png")).astype(np.float64),
                     501: (1*plt.imread("data/textures/IoMap.png")).astype(np.float64),
                     502: (1*plt.imread("data/textures/EuropaMap.png")).astype(np.float64),
@@ -86,8 +89,8 @@ def main():
     extra_rots = {599: -16}
     et_ca=str2et(cal_ca)
     # from frame 1212, which includes Jupiter, Io in foreground, and one more moon (Europa?) in the background
-    #for frame_number in range(330,2185):
-    for frame_number in range(1210,1220):
+    for frame_number in range(2891,4941+1):
+    #for frame_number in range(1212,1213):
         print(frame_number)
         et=float(f_et(frame_number)) #1979-03-04 20:28:31.788 ET, J-15:36:54.211
         # Copied from Stage HudMatrix. That is a camera-to-universe transformation
@@ -95,21 +98,70 @@ def main():
         # then chunk out and de-transpose it with code.
         jupiter_state,_=spkezr("599",et,univ_frame,"LT+S",str(-30-vgr))
         jupiter_pos=jupiter_state[:3].reshape(-1,1)
-        if frame_number<=2185:
-            frame_stage= stage(camera_ru=np.array([[0.0], [0.0], [0.0]]),
-                               actor_ru=jupiter_pos,
-                               sky_vec=np.array([[0.0],[0.0],[1.0]]),
-                               right_scale=4.0/3.0,
-                               angle=18.0,
-                               x_d=f_xd(frame_number),
-                               y_d=f_yd(frame_number)
+        io_state,_=spkezr("501",et,univ_frame,"LT+S",str(-30-vgr))
+        io_pos=io_state[:3].reshape(-1,1)
+        ganymede_state,_=spkezr("503",et,univ_frame,"LT+S",str(-30-vgr))
+        ganymede_pos=ganymede_state[:3].reshape(-1,1)
+        callisto_state,_=spkezr("504",et,univ_frame,"LT+S",str(-30-vgr))
+        callisto_pos=callisto_state[:3].reshape(-1,1)
+        sun_state,_=spkezr("10",et,univ_frame,"LT+S",str(-30-vgr))
+        sun_pos=sun_state[:3].reshape(-1,1)
+        frame_stage=None
+        def stage1(f0,f1,actor):
+            nonlocal frame_stage
+            frame_stage = stage(camera_ru=np.array([[0.0], [0.0], [0.0]]),
+                                actor_ru=actor,
+                                sky_vec=np.array([[0.0], [0.0], [1.0]]),
+                                right_scale=4.0 / 3.0,
+                                angle=18.0,
+                                x_d=f_xd(frame_number),
+                                y_d=f_yd(frame_number)
+                              )
+        def stage2(f0,f1,actor0,actor1):
+            nonlocal frame_stage
+            frame_stage = double_stage(camera_ru=np.array([[0.0], [0.0], [0.0]]),
+                               actor_ru0=actor0, x0_d=f_xd(frame_number), y0_d=f_yd(frame_number),
+                               actor_ru1=actor1, x1_d=f_xd(frame_number), y1_d=f_yd(frame_number),
+                               t=linterp(f0, 0.0, f1, 1.0, frame_number),
+                               sky_vec=np.array([[0.0], [0.0], [1.0]]), right_scale=4 / 3, angle=18
                                )
+        if frame_number<=2185:
+            stage1(0,2185,jupiter_pos)
+        elif frame_number<=2279:
+            stage2(2185,2273,jupiter_pos,io_pos)
+        if frame_number<=2872:
+            stage1(2279,2872,io_pos)
+        elif frame_number<=2966:
+            stage2(2873,2966,io_pos,ganymede_pos)
+        elif frame_number<=3372:
+            stage1(2967,3372,ganymede_pos)
+        elif frame_number<=3466:
+            stage2(3373,3466,ganymede_pos,jupiter_pos)
+        elif frame_number<=3780:
+            stage1(3467,3780,jupiter_pos)
+        elif frame_number<=3873:
+            stage2(3781,3873,jupiter_pos,callisto_pos)
+        elif frame_number<=4279:
+            stage1(3874,4279,callisto_pos)
+        elif frame_number<=4371:
+            stage2(4280,4371,callisto_pos,jupiter_pos)
+        else:
+            stage1(4372,4941,jupiter_pos)
         frame_buffer=np.zeros([n_rows,n_cols,3],dtype=np.float64)
         draw_stars(frame_buffer=frame_buffer,stars=stars,
                    down_u=frame_stage.down_u,
                    right_u=frame_stage.right_u,
-                   direction_u=frame_stage.direction_u
+                   direction_u=frame_stage.direction_u,
+                   sig_x=scale*_DEFAULT_SIG_X,
+                   sig_y=scale * _DEFAULT_SIG_Y,
+
                    )
+        draw_sun(frame_buffer=frame_buffer,sun_u=sun_pos,
+                 down_u=frame_stage.down_u,
+                 right_u=frame_stage.right_u,
+                 direction_u=frame_stage.direction_u,
+                 scale=scale
+                 )
         draw_planets(frame_buffer=frame_buffer,
                      down_u=frame_stage.down_u,
                      right_u=frame_stage.right_u,
@@ -121,11 +173,11 @@ def main():
                      extra_rots=extra_rots,
                      use_c=True)
         plt.imsave(f"data/output/v1j/frame_{frame_number:04d}.png",np.clip(frame_buffer,0.0,1.0))
-        plt.clf()
-        plt.imshow(frame_buffer)
-        plt.title(f"Frame {frame_number}")
-        plt.pause(0.01)
-    plt.show()
+        #plt.clf()
+        #plt.imshow(frame_buffer)
+        #plt.title(f"Frame {frame_number}")
+        #plt.pause(0.01)
+    #plt.show()
 
 
 if __name__ == "__main__":

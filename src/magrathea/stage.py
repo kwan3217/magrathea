@@ -6,7 +6,7 @@ Created: 8/19/25
 from dataclasses import dataclass
 
 import numpy as np
-from kwanmath.matrix import point_toward
+from kwanmath.matrix import point_toward, slerp
 from kwanmath.vector import vnormalize
 
 
@@ -101,6 +101,7 @@ class StageResult:
     right_u:np.ndarray
     down_u:np.ndarray
     direction_u:np.ndarray
+    direction_scale:float
 
 
 def stage(*,
@@ -151,4 +152,56 @@ def stage(*,
     # Since we aren't in POV-Ray any more, we make a 4x4 matrix like above
     hud_matrix=np.vstack((np.hstack((stage_right,stage_down,stage_out*direction_scale,location)),
                           np.array([0.0,0.0,0.0,1.0])))
-    return StageResult(right_u=stage_right*right_scale,down_u=stage_down,direction_u=stage_out*direction_scale)
+    return StageResult(right_u=stage_right*right_scale,down_u=stage_down,direction_u=stage_out*direction_scale,direction_scale=direction_scale)
+
+
+def double_stage(*,
+        camera_ru: np.ndarray,
+        actor_ru0: np.ndarray, x0_d:float, y0_d:float,
+        actor_ru1: np.ndarray, x1_d:float, y1_d:float,
+        t:float,
+        sky_vec: np.ndarray,
+        right_scale: float,
+        angle: float
+):
+    # Primary stage
+    stage0=local_stage(camera_ru=camera_ru,actor_ru=actor_ru0, sky_vec=sky_vec, right_scale=right_scale, angle=angle, x_d=x0_d,y_d=y0_d)
+    M0=np.hstack((vnormalize(stage0.stage_right),vnormalize(stage0.stage_down),vnormalize(stage0.stage_out)))
+    print(f"{M0=}")
+    # Secondary stage
+    stage1=local_stage(camera_ru=camera_ru,actor_ru=actor_ru1, sky_vec=sky_vec, right_scale=right_scale, angle=angle, x_d=x1_d,y_d=y1_d)
+    M1=np.hstack((vnormalize(stage1.stage_right),vnormalize(stage1.stage_down),vnormalize(stage1.stage_out)))
+    # inTerpolated stage (t for parameter $t$)
+    MT=slerp(M0,M1,t)
+    staget_right=MT[:,None,0]
+    staget_down =MT[:,None,1]
+    staget_out  =MT[:,None,2]
+    """
+    # Camera vectors, follows interpolation
+    location=camera_ru
+    #declare LookAt=Location+StageTOut;
+    #declare CamSky=vnormalize(-StageTDown);
+    // Foreground Stage vectors, follows stage 0
+    #declare StageRight=Stage0Right;
+    #declare StageDown =Stage0Down;
+    #declare StageOut  =Stage0Out;
+    // Camera parameters, constant between frames so use stage 0. Note that angle etc might change over time,
+    // but will not change between stage 0 and stage 1. Any angle etc change will occur to both stages
+    // in lockstep, so it's only specified once.
+    #declare DirectionScale=Stage0[8].x;
+    #declare CamAngle=Stage0[7].x;
+    #declare CamRight=Stage0[6];
+    // HUD Matrix, follow interpolation
+    #declare HudMatrix=transform{
+      MatrixVerbose("DoubleStage HudMatrix: ",
+              StageTRight.x,StageTRight.y,StageTRight.z,
+              StageTDown.x,StageTDown.y,StageTDown.z
+              StageTOut.x*DirectionScale,StageTOut.y*DirectionScale,StageTOut.z*DirectionScale,
+              Location.x,Location.y,Location.z)
+    };
+    """
+    return StageResult(right_u=staget_right * right_scale,
+                       down_u=staget_down,
+                       direction_u=staget_out * stage0.direction_scale,direction_scale=stage0.direction_scale)
+
+

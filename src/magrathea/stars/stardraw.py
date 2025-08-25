@@ -6,6 +6,7 @@ Created: 8/19/25
 import numpy as np
 from kwanmath.gaussian import twoD_Gaussian
 from kwanmath.interp import linterp
+from kwanmath.vector import vnormalize
 
 _DEFAULT_SIG_X=1.5
 _DEFAULT_SIG_Y=1.0
@@ -17,6 +18,7 @@ def _draw_star(*,
               M_cu:np.ndarray,
               sig_x:float=_DEFAULT_SIG_X,
               sig_y:float=_DEFAULT_SIG_Y,
+              theta:float=None
               ):
     """
 
@@ -43,8 +45,18 @@ def _draw_star(*,
     xpf=xp-int(xp)
     ypi=int(yp)
     ypf=yp-int(yp)
-    boxr_x=int(sig_x*5)
-    boxr_y=int(sig_y*5)
+    if theta is None:
+        alpha=sig_x
+        beta=sig_y
+        rho=0.0
+    else:
+        c=np.cos(np.deg2rad(theta))
+        s=np.sin(np.deg2rad(theta))
+        alpha=np.sqrt(sig_x**2*c**2+sig_y**2*s**2)
+        beta =np.sqrt(sig_x**2*s**2+sig_y**2*c**2)
+        rho  =(sig_x**2-sig_y**2)*c*s/(alpha*beta)
+    boxr_x=int(alpha*5)
+    boxr_y=int(beta*5)
     xsize = frame_buffer.shape[1]
     ysize = frame_buffer.shape[0]
     if not (-boxr_x<=xpi<=xsize+boxr_x):
@@ -55,9 +67,10 @@ def _draw_star(*,
     box_yc=ypf+boxr_y
     y,x=np.mgrid[0:2*boxr_y,0:2*boxr_x]
     plane=twoD_Gaussian(x,y,
-                      amplitude=1.0,xc=box_xc,yc=box_yc,
-                      sigma_x=sig_x,sigma_y=sig_y,
-                      rho=0.0,offset=0.0)
+                     amplitude=1.0,xc=box_xc,yc=box_yc,
+                     sigma_x=alpha,sigma_y=beta,
+                     rho=rho,offset=0.0)
+
     star=plane[:,:,None]*color.reshape(-1)
     if False:
         star_frame=np.zeros((frame_buffer.shape[0]+4*boxr_y,frame_buffer.shape[1]+4*boxr_x,3))
@@ -95,11 +108,13 @@ def draw_stars(*,
     """
 
     :param frame_buffer:
-    :param stars:
-    :param color:
-    :param right_u:
-    :param down_u:
-    :param direction_u:
+    :param stars:List of tuples:
+       * v_u - unit vector pointing at star in universe frame
+       * color - rgb color, each component in range [0,1]
+       * other things like names etc are allowed but not used
+    :param right_u: Right vector of camera in universe frame, including aspect ratio scaling
+    :param down_u: Down vector of camera in universe frame
+    :param direction_u: Direction vector of camera in universe frame, including field-of-view scaling
     :param sig_x:
     :param sig_y:
     :return:
@@ -112,3 +127,43 @@ def draw_stars(*,
                   color=color,
                   M_cu=M_cu,
                   sig_x=sig_x,sig_y=sig_y)
+
+
+def draw_sun(*,
+               frame_buffer:np.ndarray,
+               sun_u:np.ndarray,
+               right_u:np.ndarray,
+               down_u:np.ndarray,
+               direction_u:np.ndarray,
+               scale:float=1.0):
+    """
+    Draw sun as several Gaussians
+    :param frame_buffer:
+    :param sun_u: position of sun in camera-centered universe frame. For Voyager, use spkezr(10,et,univ_frame,"LT+S",-30-vgr)
+    :param right_u: Right vector of camera in universe frame, including aspect ratio scaling
+    :param down_u: Down vector of camera in universe frame
+    :param direction_u: Direction vector of camera in universe frame, including field-of-view scaling
+    """
+    M_uc=np.hstack((right_u,down_u,direction_u))
+    M_cu=np.linalg.inv(M_uc)
+    v_u=vnormalize(sun_u)
+    _draw_star(frame_buffer=frame_buffer,
+               v_u=v_u,
+               color=np.ones((3,1)),
+               M_cu=M_cu,
+               sig_x=20*scale,sig_y= 3*scale)
+    _draw_star(frame_buffer=frame_buffer,
+               v_u=v_u,
+               color=np.ones((3,1)),
+               M_cu=M_cu,
+               sig_x= 3*scale,sig_y=20*scale)
+    _draw_star(frame_buffer=frame_buffer,
+               v_u=v_u,
+               color=np.ones((3,1)),
+               M_cu=M_cu,
+               sig_x=10*scale,sig_y=2*scale,theta=45)
+    _draw_star(frame_buffer=frame_buffer,
+               v_u=v_u,
+               color=np.ones((3,1)),
+               M_cu=M_cu,
+               sig_x=10*scale,sig_y=2*scale,theta=-45)
