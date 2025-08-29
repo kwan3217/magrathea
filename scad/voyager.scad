@@ -6,43 +6,16 @@
 
 */
 
-// POV-Ray stuff
-function vlength(v)=sqrt(v.x*v.x+v.y*v.y+v.z*v.z);
-function vnormalize(v)=v/vlength(v);
-module pov_cylinder(r1,r2,r) {
-    /*
-    :param r1: center of face 1
-    :param r2: center of face 2
-    :param r: radius of faces
-    */
-    zb=vnormalize(r2-r1); //axis of cylinder (on z axis in body frame)
-    xb=vlength(cross(zb,[0,1,0]))==0.0?vnormalize(cross(zb,[1,0,0])):vnormalize(cross(zb,[0,1,0]));
-    yb=vnormalize(cross(zb,xb));
-    
-    
-    multmatrix([[xb.x,yb.x,zb.x,r1.x],
-                [xb.y,yb.y,zb.y,r1.y],
-                [xb.z,yb.z,zb.z,r1.z],
-                [ 0.0, 0.0, 0.0, 1.0]])
-    cylinder(h=vlength(r2-r1),r1=r,r2=r,center=false);
-}
+use <pov.scad>
 
-module pov_cone(r1,rr1,r2,rr2) {
+module stick(r1,r2,r) {
     /*
     :param r1: center of face 1
     :param r2: center of face 2
     :param r: radius of faces
     */
-    zb=vnormalize(r2-r1); //axis of cylinder (on z axis in body frame)
-    xb=vlength(cross(zb,[0,1,0]))==0.0?vnormalize(cross(zb,[1,0,0])):vnormalize(cross(zb,[0,1,0]));
-    yb=vnormalize(cross(zb,xb));
-    
-    
-    multmatrix([[xb.x,yb.x,zb.x,r1.x],
-                [xb.y,yb.y,zb.y,r1.y],
-                [xb.z,yb.z,zb.z,r1.z],
-                [ 0.0, 0.0, 0.0, 1.0]])
-    cylinder(h=vlength(r2-r1),r1=rr1,r2=rr2,center=false);
+    $fn=3;
+    pov_cylinder(r1,r2,r);
 }
 
 
@@ -64,12 +37,13 @@ pov_cylinder([0,0,0],[10,20,30],1);
 
 NSides=10;
 FA=360/NSides;
-BusR=38;
+BusR=37;
 BusH=17;
+$fn=16;
 
 module decagon() {
   rotate([0,0,90])
-  cylinder(h=1,r=1,$fn=10);
+  cylinder(h=1,r=1,$fn=NSides);
 }
 
 module box(v1,v2) {
@@ -79,6 +53,7 @@ module box(v1,v2) {
 }
 
 module Louver() {
+  translate([0.7,0,0])
   union() {
     LouverD=1;
     LouverInsetL=3;
@@ -113,7 +88,7 @@ module Tubes(V,E,R) {
     :param E: list of edges of shape [N,2] -- each edge is the zero-based index of start and end vertex of tube
     :param R: Tube radius
     */
-    for(I=[0:len(E)-1]) pov_cylinder(V[E[I][0]],V[E[I][1]],R);
+    for(I=[0:len(E)-1]) stick(V[E[I][0]],V[E[I][1]],R);
 }
 
 module LaunchMount() {
@@ -208,9 +183,9 @@ module RTGs() {
 
 module GoldRecord() {
   color([1.0,1.0,0.0])
-  translate([-cos(FA/2)*BusR,1,-9.5])
+  translate([-cos(FA/2)*BusR-0.01,1,-9.5])
   rotate([0,-90,0])
-  cylinder(3,6,6,center=false);
+  cylinder(1,6,6,center=false);
 }
 
 module MainBus() {
@@ -239,7 +214,7 @@ module MagBoom() {
   rotate([40,0,0]){
   color([1,1,1])
   pov_cylinder([0,0,0],[0,-16,0],MagBoomR);
-  for(I=[0:3-1]) color([1,0.75,0]) rotate([0,I*120+40,0]) pov_cylinder(
+  for(I=[0:3-1]) color([1,0.75,0]) rotate([0,I*120+40,0]) stick(
       [0,-16,MagBoomR-WhipR],[0,-16-MagBoomLength,MagBoomR-WhipR],WhipR);
   for(I=[0:MagBoomBays-1]) translate([0,-(16+I*MagBayLength)])
       Tubes([
@@ -275,23 +250,26 @@ module shell(R,H,thick) {
 HGA_R=144.93/2; //numerator is diameter, exact value from blueprint
 HGA_D=27; //depth measured from blueprint
 HGA_c=HGA_D/(HGA_R*HGA_R);
+HGA_t=1;
 module HGADish() {
-  Segments=10;
-  HGA_rs=[for (r=[0:HGA_R/Segments:HGA_R*(1-1/Segments)]) r];
+  Segments=2;
+  HGA_rs=[for (r=[0:HGA_R/Segments:HGA_R]) r];
   echo("HGA_rs: ",HGA_rs);
-  HGA_hs=[for (r=[0:HGA_R/Segments:HGA_R*(1-1/Segments)]) r*r*HGA_c];
+  HGA_hs=[for (r=[0:HGA_R/Segments:HGA_R]) r*r*HGA_c];
   echo("HGA_hs: ",HGA_hs);
   CollarR=35;
   CollarD=HGA_c*CollarR*CollarR;
-  color([1,1,1]) {
-    translate([0,0,-36])
-    scale([1,1,-1])
-    shell(HGA_rs,HGA_hs,1);
-    difference() {
+  translate([0,0,-36])
+  scale([1,1,-1])
+  color([1,1,1])
+  shell(HGA_rs,HGA_hs,HGA_t);
+  color([0.5,0.5,0.5])
+  difference() {
       pov_cylinder([0,0,-33],[0,0,-36-CollarD],CollarR);
       pov_cylinder([0,0,-32],[0,0,-37-CollarD],CollarR-1);
-    }
   }
+  /*translate([0,0,-36-HGA_D-HGA_t-1])
+  cylinder(h=1,r=HGA_R);*/
 }
 
 module HGASupport() {
@@ -425,6 +403,23 @@ module FuelTank() {
   sphere(r=14);
 }
 
+module StarTracker() {
+  translate([0,0,-BusH])
+  rotate([0,0,180+35]) {
+    color([0.5,0.5,0.5])
+    box([0,0,0],[4.5,11,-5.5]);
+    color([1.0,1.0,1.0])
+    box([-0.5,11,3],[5.0,18,-8.5]);
+  }
+}
+
+module StarTrackers() {
+  translate([22.65,-15.65,0])
+  StarTracker();
+  translate([28.36, -7.92,0])
+  StarTracker();
+}
+
 module VoyagerBody() {
   MainBus();
   rotate([0,0,-(1-1)*FA]) Louver();
@@ -443,6 +438,7 @@ module VoyagerBody() {
   ScienceTruss();
   FuelTank();
   ScienceBoom();
+  StarTrackers();
 }
 
 module ISSNA() {
