@@ -6,8 +6,8 @@ from libc.stdint cimport uint8_t
 
 cdef extern from "draw_planet_bottom.h":
     int draw_planet_bottom(
-        uint8_t *frame_buffer_data, int rows_fb, int cols_fb,
-        const uint8_t *texture_map_data, int rows_tm, int cols_tm,
+        int rows_fb, int cols_fb, uint8_t *frame_buffer_data,
+        int rows_tm, int cols_tm, const uint8_t *texture_map_data,
         double extra_rot,
         const double right_b[3],
         const double down_b[3],
@@ -69,8 +69,8 @@ def py_draw_planet_bottom(
 
     # Call C function
     cdef int result = draw_planet_bottom(
-        <uint8_t*> frame_buffer.data, rows_fb, cols_fb,
-        <uint8_t*> texture_map.data, rows_tm, cols_tm,
+        rows_fb, cols_fb, <uint8_t*> frame_buffer.data,
+        rows_tm, cols_tm, <uint8_t*> texture_map.data,
         extra_rot,
         right_b_flat,
         down_b_flat,

@@ -4,8 +4,8 @@
 #include <stdint.h>
 
 int draw_planet_bottom(
-    double *frame_buffer_data, int rows_fb, int cols_fb,
-    const double *texture_map_data, int rows_tm, int cols_tm,
+    int rows_fb, int cols_fb, double frame_buffer_data[rows_fb][cols_fb][3],
+    int rows_tm, int cols_tm, const double texture_map_data[rows_tm][cols_tm][3],
     double extra_rot,
     const double right_b[3],
     const double down_b[3],
