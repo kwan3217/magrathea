@@ -63,10 +63,74 @@ jupiter_pos=np.array([
    [4515,	356.986465711134,	213.815450059114],
    [4797,	333.791771516755,	226.936599745126]]
 )
+
+
 f_xp=interp1d(jupiter_pos[:,0],jupiter_pos[:,1],kind='linear', fill_value='extrapolate')
 f_yp=interp1d(jupiter_pos[:,0],jupiter_pos[:,2],kind='linear', fill_value='extrapolate')
 f_xd=lambda fn:linterp(0,-0.5,640,0.5,f_xp(fn))
 f_yd=lambda fn:linterp(0,-0.5,480,0.5,f_yp(fn))
+
+io_pos = np.array([
+    [1180, 15.0132857264652, 212.613198489277],
+    [1190, 33.6216038947996, 210.160808132507],
+    [1200, 53.3116942790593, 209.826281780388],
+    [1300, 297.314162960183, 197.094989237805],
+    [1400, 591.492177179341, 181.155201550463],
+    [2280, 395.440903839349, 368.068392577031],
+    [2290, 388.953831327293, 356.413437580122],
+    [2300, 383.730638635570, 345.487888842404],
+    [2310, 377.856668490960, 336.184464154363],
+    [2320, 371.554804227927, 324.686237575078],
+    [2330, 366.045469235411, 315.141209486829],
+    [2340, 360.837489313330, 303.885138042338],
+    [2350, 354.037482444944, 292.449244203478],
+    [2360, 347.423163411444, 282.210876845410],
+    [2370, 342.779295043973, 270.272961194193],
+    [2380, 336.877579625242, 259.231392321448],
+    [2390, 330.769858463083, 248.958672436011],
+    [2400, 325.092144930486, 237.768056683053],
+    [2410, 317.870373792774, 228.653978412783],
+    [2420, 312.414497812382, 218.748470085024],
+    [2430, 305.766112216334, 202.587498558853],
+    [2440, 299.786761280688, 192.047179138707],
+    [2450, 293.361934032853, 179.663179994451],
+    [2460, 287.488081870793, 165.476541005499],
+    [2461, 287.657377949656, 167.364204187425],
+    [2462, 288.457229762495, 174.181401167389],
+    [2463, 286.346597435253, 161.295670250783],
+    [2464, 286.080759066276, 159.853174951244],
+    [2465, 284.189214768035, 158.421757835448],
+    [2466, 284.720555072855, 156.662258613916],
+    [2467, 285.442469001714, 161.392806991406],
+    [2468, 285.299324952126, 159.185286453273],
+    [2469, 286.168136586058, 159.753411009666],
+    [2470, 287.140654626557, 169.845459580192],
+    [2471, 291.580165118540, 171.836795333733],
+    [2472, 285.959886827383, 177.744136042553],
+    [2473, 287.589845615787, 185.178105885114],
+    [2474, 286.393928064949, 187.231939245920],
+    [2475, 287.269651297451, 185.115661804071],
+    [2476, 289.405551379018, 195.251792156678],
+    [2477, 288.824947634009, 186.089789524327],
+    [2478, 289.409165153084, 189.202446880356],
+    [2479, 287.987469559458, 191.978068376758],
+    [2480, 291.951134452600, 193.619001771629],
+    [2490, 293.498421890695, 187.214862489361],
+    [2491, 291.275811820445, 190.813200742287],
+    [2500, 293.091944159560, 186.742459350519],
+])
+io_a=np.logical_and(2280<=io_pos[:,0],io_pos[:,0]<=2465)
+f_io_a_xd=np.poly1d(np.polyfit(io_pos[io_a,0],io_pos[io_a,1],1))
+f_io_a_yd=np.poly1d(np.polyfit(io_pos[io_a,0],io_pos[io_a,2],1))
+
+def f_io_xd(i_framenum):
+    if i_framenum<=2465:
+        return f_io_a_xd(i_framenum)
+
+
+def f_io_yd(i_framenum):
+    if i_framenum<=2465:
+        return f_io_a_yd(i_framenum)
 
 
 def main():
@@ -89,7 +153,7 @@ def main():
     extra_rots = {599: -16}
     et_ca=str2et(cal_ca)
     # from frame 1212, which includes Jupiter, Io in foreground, and one more moon (Europa?) in the background
-    for frame_number in range(2891,4941+1):
+    for frame_number in range(2185,2465+1):
     #for frame_number in range(1212,1213):
         print(frame_number)
         et=float(f_et(frame_number)) #1979-03-04 20:28:31.788 ET, J-15:36:54.211
@@ -107,30 +171,32 @@ def main():
         sun_state,_=spkezr("10",et,univ_frame,"LT+S",str(-30-vgr))
         sun_pos=sun_state[:3].reshape(-1,1)
         frame_stage=None
-        def stage1(f0,f1,actor):
+        def stage1(f0,f1,actor,this_f_xd=f_xd,this_f_yd=f_yd):
             nonlocal frame_stage
             frame_stage = stage(camera_ru=np.array([[0.0], [0.0], [0.0]]),
                                 actor_ru=actor,
                                 sky_vec=np.array([[0.0], [0.0], [1.0]]),
                                 right_scale=4.0 / 3.0,
                                 angle=18.0,
-                                x_d=f_xd(frame_number),
-                                y_d=f_yd(frame_number)
+                                x_d=this_f_xd(frame_number),
+                                y_d=this_f_yd(frame_number)
                               )
-        def stage2(f0,f1,actor0,actor1):
+        def stage2(f0,f1,actor0,actor1, *,
+                   f0_xd=f_xd,f0_yd=f_yd,
+                   f1_xd=f_xd,f1_yd=f_yd):
             nonlocal frame_stage
             frame_stage = double_stage(camera_ru=np.array([[0.0], [0.0], [0.0]]),
-                               actor_ru0=actor0, x0_d=f_xd(frame_number), y0_d=f_yd(frame_number),
-                               actor_ru1=actor1, x1_d=f_xd(frame_number), y1_d=f_yd(frame_number),
+                               actor_ru0=actor0, x0_d=f0_xd(frame_number), y0_d=f0_yd(frame_number),
+                               actor_ru1=actor1, x1_d=f1_xd(frame_number), y1_d=f1_yd(frame_number),
                                t=linterp(f0, 0.0, f1, 1.0, frame_number),
                                sky_vec=np.array([[0.0], [0.0], [1.0]]), right_scale=4 / 3, angle=18
                                )
         if frame_number<=2185:
             stage1(0,2185,jupiter_pos)
         elif frame_number<=2279:
-            stage2(2185,2273,jupiter_pos,io_pos)
+            stage2(2185,2273,jupiter_pos,io_pos)#,    f1_xd=f_io_xd,    f1_yd=f_io_yd)
         if frame_number<=2872:
-            stage1(2279,2872,io_pos)
+            stage1(2279,2872,            io_pos)#,this_f_xd=f_io_xd,this_f_yd=f_io_yd)
         elif frame_number<=2966:
             stage2(2873,2966,io_pos,ganymede_pos)
         elif frame_number<=3372:
