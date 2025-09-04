@@ -108,6 +108,9 @@ module LaunchMount() {
   Tubes(LaunchMountV,LaunchMountE,1);
 }
 
+RTGPivotZ=-24;
+RTGPivotY=-60;
+
 module RTGMount() {
   RTGMountV=[
     [ 21,-28,0], //0, bottom outboard +x
@@ -115,8 +118,8 @@ module RTGMount() {
     [ 21,-28,-BusH], //2, top outboard +x
     [-21,-28,-BusH], //3, top outboard -x
     [0,-BusR,0],   //4,bottom inboard
-    [ 11,-60,-24],  //5,pivot +x
-    [-11,-60,-24],  //6,pivot +x
+    [ 11,RTGPivotY,RTGPivotZ],  //5,pivot +x
+    [-11,RTGPivotY,RTGPivotZ],  //6,pivot +x
   ];
   RTGMountE=[
     [0,5],
@@ -132,8 +135,8 @@ module RTGMount() {
 
 module RTGTruss() {
   RTGTrussV=[
-    [ 11, -60,-24],  //0,pivot +x
-    [-11, -60,-24],  //1,pivot -x
+    [ 11,RTGPivotY,RTGPivotZ],  //0,pivot +x
+    [-11,RTGPivotY,RTGPivotZ],  //1,pivot -x
     [  0, -84,-13],  //2 field joint x0
     [  8, -84,-18],  //3 field joint +x
     [ -8, -84,-18],  //4 field joint -x
@@ -172,7 +175,13 @@ module RTG() {
   }
 }
 
-module RTGs() {
+RTGStow=0.0;
+MagBoomStow=0.0;
+
+module RTGs() 
+translate([0,RTGPivotY,RTGPivotZ])
+rotate([-95*RTGStow,0,0])
+translate([0,-RTGPivotY,-RTGPivotZ]) {
   RTGTruss();
   for(I=[0:3-1]) 
     translate([0,-103,-5])
@@ -204,6 +213,7 @@ module MainBus() {
   }
 }
 
+
 module MagBoom() {
   MagBoomLength=13*39.97;
   MagBoomBays=60;
@@ -211,9 +221,10 @@ module MagBoom() {
   MagBoomR=5;
   WhipR=0.2;
   translate([0,-52,-28])
-  rotate([40,0,0]){
+  rotate([40,0,0]) {
   color([1,1,1])
   pov_cylinder([0,0,0],[0,-16,0],MagBoomR);
+  scale([1.0,1.0-MagBoomStow*0.97,1.0]) {
   for(I=[0:3-1]) color([1,0.75,0]) rotate([0,I*120+40,0]) stick(
       [0,-16,MagBoomR-WhipR],[0,-16-MagBoomLength,MagBoomR-WhipR],WhipR);
   for(I=[0:MagBoomBays-1]) translate([0,-(16+I*MagBayLength)])
@@ -232,6 +243,7 @@ module MagBoom() {
         [4,5],
         [5,3]
       ],WhipR/2);
+      }
   }
 }
 
