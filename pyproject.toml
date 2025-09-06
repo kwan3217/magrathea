@@ -20,9 +20,10 @@ dependencies = [
     "spiceypy",
     "matplotlib",
     "pytest",
-    "kwanmath @ git+ssh://git@github.com/kwan3217/kwanmath.git",
+    "kwanmath @ git+https://github.com/kwan3217/kwanmath.git",
     "Cython>=0.29.36",
-    "numpy>=1.23.0"
+    "numpy>=1.23.0",
+    "jupyterlab"
 ]
 
 [tool.setuptools]

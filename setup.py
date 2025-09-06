@@ -12,7 +12,16 @@ ext_modules = [
             "src/magrathea/planet/shadow.c"
         ],
         include_dirs=[np.get_include()],
-        extra_compile_args=["-O3", "-g"]
+        extra_compile_args=["-O3"]
+    ),
+    Extension(
+        name="magrathea.triangle.tridraw_cy",
+        sources=[
+            "src/magrathea/triangle/tridraw_cy.pyx",
+            "src/magrathea/triangle/tridraw.c"
+        ],
+        include_dirs=[np.get_include()],
+        extra_compile_args=["-O3"]
     )
 ]
 

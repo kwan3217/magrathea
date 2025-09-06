@@ -15,6 +15,7 @@ venv/
 .idea/
 
 *_cy.c
+*_cy.cpp
 *.so
 *.o
 

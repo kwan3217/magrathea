@@ -17,7 +17,7 @@ class RequiredSectionMissingError(LookupError):
 
 
 def parse_html_color(color:str):
-    return np.array((int(color[1:3],16),int(color[3:5],16),int(color[5:7],16))).reshape(-1,1)/255
+    return np.array((int(color[1:3],16),int(color[3:5],16),int(color[5:7],16)))/255
 
 
 def load3mf(infn:str|Path)-> Mesh:
@@ -36,8 +36,10 @@ def load3mf(infn:str|Path)-> Mesh:
     if not colorgroups:
         raise RequiredSectionMissingError("No section matching './/3mf:resources/3mf:colorgroup'")
     colorgroup=colorgroups[0]
-    colors=np.hstack([parse_html_color(color.attrib["color"]) for color in colorgroup])
-    print(colors.shape)
+    colors=[]
+    for color in colorgroup:
+        colors.append(parse_html_color(color.attrib["color"]))
+    colors=np.array(colors)
     meshes=root.findall('.//3mf:resources/3mf:object/3mf:mesh',namespaces)
     if not meshes:
         raise RequiredSectionMissingError("No section matching './/3mf:resources/3mf:object/3mf:mesh'")
@@ -52,7 +54,7 @@ def load3mf(infn:str|Path)-> Mesh:
     if not triangless:
         raise RequiredSectionMissingError("No section matching './/3mf:triangles'")
     triangles=triangless[0]
-    tricolors=colors[:,np.array([int(triangle.attrib["p1"]) for triangle in triangles])]
+    tricolors=colors[np.array([int(triangle.attrib["p1"]) for triangle in triangles]),:]
     triangles=np.array([np.hstack((vertices[int(triangle.attrib["v1"])],
                                    vertices[int(triangle.attrib["v2"])],
                                    vertices[int(triangle.attrib["v3"])])) for triangle in triangles])

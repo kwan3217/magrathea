@@ -16,7 +16,7 @@ class Mesh:
                                IE a matrix with column vectors. Result has shape (M,3,3) where first index (size M)
                                is triangle index, second index (size 3) is 3D in Euclidean 3D space, and third index
                                (also size 3) is the vertex index of the triangles.
-        :param self.tricolors: 1D bundle of color vectors, shape (3,M). Each column vector is a color of one triangle.
+        :param self.tricolors: 1D bundle of colors, shape (M,3). Each row is a color of one triangle.
         """
         self.triangles=triangles
         self.tricolors=tricolors
@@ -27,9 +27,15 @@ class Mesh:
         Perform the work of a geometry shader.
 
         * Transform body vertex coordinates to
-        :param M_ub:
-        :param M_cu:
-        :param T_c:
+        :param M_ub: Matrix which transforms to universe from body coordinates. This is a 3x3 matrix which leaves
+                     the origin of the body at the origin of the universe. This is appropriate for the present use case.
+                     It should usually be an SO(3) matrix.
+        :param M_cu: Matrix which transforms to camera from universe coordinates. This includes field of view and aspect,
+                     so while the basis vectors are orthogonal, they are generally *not* orthonormal, so M_cu is not
+                     special orthogonal.
+        :param T_c: Vector of translation of body center in camera space, effectively it's "stage position" relative to camera.
+                    +x is right, -x is left, +y is down, -y is up, +z is in front of camera and visible, -z is behind camera
+                    and invisible, with
         :param lhat_u: direction to light in universe frame
         :param diffuse: contribution of lambert reflection, default matches POV-Ray
         :param ambient: contribution of color independent of any lighting, default matches POV-Ray
@@ -40,8 +46,8 @@ class Mesh:
                                                                              top edge at y=-0.5, bottom edge at y=+0.5.
              This is in the form of a bundle of size N of 2x3 matrices, therefore an (N,2,3) array, culled so only
              triangles in front of the camera are visible and sorted from far to near, so the painter's algorithm works.
-           * Corresponding colors in the form of a bundle of RGB shaded vectors, shape (N,3) each component R (row 0),
-             G (row 1) and B (row 2) between 0.0 and 1.0
+           * Corresponding colors in the form of a bundle of RGB shaded vectors, shape (N,3) each component R (col 0),
+             G (col 1) and B (col 2) between 0.0 and 1.0
 
         Translation *could* be T_u, where we have tri_uprime=tri_u+T_u, then run the camera transform.
         In this case, we would have tri_c=M_cu@(tri_u+T_u). A 1 unit displacement in x would go whichever direction
@@ -70,21 +76,21 @@ class Mesh:
         dotp=vdot(normals_c,tris_c[:,:,0].T)    # result is M, positive means normal is facing forward, away from camera, so seeing back side
                                               #              and therefore should be culled
         keep_mask=np.logical_and(dotp<0,tris_c[:,2,0]>0) # result is M, of bools, N of which are true
-        tris_kept=tris_c[keep_mask] # add two dims to keep_mask so it's Mx1x1 and broadcasts with Mx3x3. Result select out Nx3x3
-        intrinsic_kept=((self.tricolors.T)[keep_mask]).T
+        tris_kept=tris_c[keep_mask]                # Result select out Nx3x3
+        intrinsic_kept=self.tricolors[keep_mask] # Result selects out Nx3
         shade_kept=(diffuse*lambert[keep_mask]+ambient)
-        trishades_kept=intrinsic_kept*shade_kept # Add a dim so it's Mx1 and broadcasts with Mx3, selecting Nx3
+        trishades_kept=intrinsic_kept*shade_kept[:,None] # Add a dim so it's Nx1 and broadcasts with Nx3
         # Sort the culled triangles by (squared) distance to vertex 0. Do it negative so that further points are more negative and sort first
         negdist2=-vdot(tris_kept[:,:,0].T,tris_kept[:,:,0].T) # result is N,
         s=np.argsort(negdist2) # permutation list
         tris_sorted=tris_kept[s,:,:] # triangles sorted permutation list
-        trishades_sorted=trishades_kept[:,s] # shading sorted by permutation list
+        trishades_sorted=trishades_kept[s,:] # shading sorted by permutation list
         # Project the triangles by dividing by the z component
         tris_project=tris_sorted[:,0:2,:]/tris_sorted[:,2,None,:] # result is Nx2x3, a 2D vector for each vertex in N triangles
         if w is None:
             return tris_project,trishades_sorted
-        x_screen = linterp(-0.5, 0, 0.5, w - 1, tris_project[:, 0, :]).astype(np.int32)
-        y_screen = linterp(-0.5, 0, 0.5, h - 1, tris_project[:, 1, :]).astype(np.int32)
+        x_screen = linterp(-0.5, 0, 0.5, w, tris_project[:, 0, :]).astype(np.int32)
+        y_screen = linterp(-0.5, 0, 0.5, h, tris_project[:, 1, :]).astype(np.int32)
         tris_screen = np.stack((x_screen, y_screen), axis=1)
         return tris_screen,trishades_sorted
 
