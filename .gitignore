@@ -19,4 +19,5 @@ venv/
 *.so
 *.o
 
-
+/data/output/
+*-checkpoint.*
