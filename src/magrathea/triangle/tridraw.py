@@ -8,6 +8,8 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from magrathea.triangle.tridraw_cy import tris_raster_c
+
 Combiner=Callable[[np.ndarray|float,np.ndarray|float],np.ndarray|float]
 replace=lambda a,b:b
 default_combiner=replace
@@ -532,3 +534,11 @@ def tri_raster_npmask(frame_buffer: np.ndarray, triangle: np.ndarray, tricolor: 
 #tri_raster=lambda frame_buffer, color, xa, ya, xb, yb, xc, yc,combine:ssloylinesweep_triangle(Point2D(xa,ya),Point2D(xb,yb),Point2D(xc,yc),frame_buffer,color,combine=combine)
 tri_raster_grok=lambda frame_buffer,color,xa,ya,xb,yb,xc,yc,combine=default_combiner:grok_tri(frame_buffer,np.array([[xa,xb,xc],[ya,yb,yc]]),color,combine=combine)
 tri_raster=lambda frame_buffer, color, xa, ya, xb, yb, xc, yc,combine=default_combiner:tri_raster_npmask(frame_buffer,np.array([[xa,xb,xc],[ya,yb,yc]]),color)
+
+
+def tris_raster(frame_buffer:np.ndarray,tris:np.ndarray,colors:np.ndarray,use_c:bool=True):
+    if use_c:
+        tris_raster_c(frame_buffer,tris,colors)
+    else:
+        for tri,color in zip(tris,colors):
+            tri_raster_npmask(frame_buffer,tri,color)

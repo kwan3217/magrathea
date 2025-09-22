@@ -6,12 +6,12 @@ import numpy as np
 from libc.stdint cimport int32_t
 
 cdef extern from "tridraw.h":
-    void tris_draw(
+    void tris_raster(
         int rows_fb, int cols_fb, double *frame_buffer_data,
         int n_tris, const int32_t *triangles, const double* tricolors
     )
 
-def py_tris_draw(
+def tris_raster_c(
     np.ndarray[np.float64_t, ndim=3] frame_buffer not None,
     np.ndarray[np.int32_t, ndim=3] triangles not None,
     np.ndarray[np.float64_t, ndim=2] tricolors not None,
@@ -32,7 +32,7 @@ def py_tris_draw(
     cdef int n_tris=triangles.shape[0]
 
     # Call C function
-    tris_draw(
+    tris_raster(
         rows_fb, cols_fb, <double*> frame_buffer.data,
         n_tris, <int32_t*> triangles.data, <double *> tricolors.data
     )

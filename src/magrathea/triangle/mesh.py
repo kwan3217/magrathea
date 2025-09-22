@@ -7,7 +7,10 @@ import numpy as np
 from kwanmath.interp import linterp
 from kwanmath.vector import vnormalize, vcross, vdot
 
+from magrathea.triangle.tridraw import tris_raster
 
+
+# begin literate_doc meshinit
 class Mesh:
     def __init__(self,*,triangles:np.ndarray,tricolors:np.ndarray):
         """
@@ -20,13 +23,15 @@ class Mesh:
         """
         self.triangles=triangles
         self.tricolors=tricolors
-    def shade_geometry(self,*,M_ub:np.ndarray,M_cu:np.ndarray,T_c:np.ndarray,
+# end literate_doc meshinit
+# begin literate_doc shade_geometry_header
+    def shade_geometry(self,*,M_ub:np.ndarray,M_cu:np.ndarray,
+                       T_c:np.ndarray=None,T_u:np.ndarray=None,T_b:np.ndarray=None,
                        lhat_u:np.ndarray,diffuse:float=0.9,ambient:float=0.1,
                        w:int=None,h:int=None):
         """
         Perform the work of a geometry shader.
 
-        * Transform body vertex coordinates to
         :param M_ub: Matrix which transforms to universe from body coordinates. This is a 3x3 matrix which leaves
                      the origin of the body at the origin of the universe. This is appropriate for the present use case.
                      It should usually be an SO(3) matrix.
@@ -59,15 +64,32 @@ class Mesh:
              =M_cu@tri_u+M_cu@T_u
              =M_cu@tri_u+T_c
         """
+# end literate_doc shade_geometry_header
+# begin literate_doc shade_geometry_ub
         # Transform triangles to universe space. This assumes body and universe frame origins coincide, correct for this use case
-        tris_u=M_ub@self.triangles
+        tris_b=self.triangles
+        if T_b is not None:
+            tris_b+=T_b
+        tris_u=M_ub@tris_b
+        if T_u is not None:
+            tris_u+=T_u
+# end literate_doc shade_geometry_ub
+# begin literate_doc shade_geometry_normal
         # Do lambert reflection in universe space
         edge_a_u=(tris_u[:,:,1]-tris_u[:,:,0]).T # Edge A vectors, shape 3,M
         edge_b_u=(tris_u[:,:,2]-tris_u[:,:,0]).T # Edge B vectors, shape 3,M
         nhat_u=vnormalize(vcross(edge_a_u,edge_b_u)) # unitized normal vectors, result is shape 3,M
+# end literate_doc shade_geometry_normal
+# begin literate_doc shade_geometry_lambert
         lambert=np.maximum(0,vdot(lhat_u,nhat_u)) # result is (M,) and triangles facing away from light get 0 Lambertian brightness.
+# end literate_doc shade_geometry_lambert
+# begin literate_doc shade_geometry_Mcu
         # Do the transformation to camera space
-        tris_c=T_c+M_cu@tris_u
+        tris_c=M_cu@tris_u
+        if T_c is not None:
+            tris_c+=T_c
+# end literate_doc shade_geometry_Mcu
+# begin literate_doc shade_geometry_cull
         # Cull the back-facing triangles and triangles behind the camera (z<0)
         edge_a_c=(tris_c[:,:,1]-tris_c[:,:,0]).T
         edge_b_c=(tris_c[:,:,2]-tris_c[:,:,0]).T
@@ -80,11 +102,15 @@ class Mesh:
         intrinsic_kept=self.tricolors[keep_mask] # Result selects out Nx3
         shade_kept=(diffuse*lambert[keep_mask]+ambient)
         trishades_kept=intrinsic_kept*shade_kept[:,None] # Add a dim so it's Nx1 and broadcasts with Nx3
+# end literate_doc shade_geometry_cull
+# begin literate_doc shade_geometry_sort
         # Sort the culled triangles by (squared) distance to vertex 0. Do it negative so that further points are more negative and sort first
         negdist2=-vdot(tris_kept[:,:,0].T,tris_kept[:,:,0].T) # result is N,
         s=np.argsort(negdist2) # permutation list
         tris_sorted=tris_kept[s,:,:] # triangles sorted permutation list
         trishades_sorted=trishades_kept[s,:] # shading sorted by permutation list
+# end literate_doc shade_geometry_sort
+# begin literate_doc shade_geometry_project
         # Project the triangles by dividing by the z component
         tris_project=tris_sorted[:,0:2,:]/tris_sorted[:,2,None,:] # result is Nx2x3, a 2D vector for each vertex in N triangles
         if w is None:
@@ -93,5 +119,17 @@ class Mesh:
         y_screen = linterp(-0.5, 0, 0.5, h, tris_project[:, 1, :]).astype(np.int32)
         tris_screen = np.stack((x_screen, y_screen), axis=1)
         return tris_screen,trishades_sorted
-
+# end literate_doc shade_geometry_project
+    @staticmethod
+    def shade_fragment(frame_buffer:np.ndarray,tris:np.ndarray,colors:np.ndarray,use_c:bool=False):
+        tris_raster(frame_buffer,tris,colors,use_c=use_c)
+    def rasterize(self,*,frame_buffer:np.ndarray,
+                  M_ub: np.ndarray, M_cu: np.ndarray,
+                  T_c: np.ndarray = None, T_u: np.ndarray = None, T_b: np.ndarray = None,
+                  lhat_u: np.ndarray, diffuse: float = 0.9, ambient: float = 0.1,use_c:bool=False):
+        tris,colors=self.shade_geometry(M_ub=M_ub,M_cu=M_cu,
+                                        T_c=T_c,T_u=T_u,T_b=T_b,
+                                        lhat_u=lhat_u,diffuse=diffuse,ambient=ambient,
+                                        w=frame_buffer.shape[1],h=frame_buffer.shape[0])
+        self.shade_fragment(frame_buffer,tris,colors,use_c=use_c)
 
