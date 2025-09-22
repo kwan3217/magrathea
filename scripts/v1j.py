@@ -3,16 +3,22 @@ Describe purpose of this script here
 
 Created: 8/19/25
 """
+from collections.abc import Callable
+from dataclasses import dataclass
 
 import numpy as np
 from kwanmath.interp import linterp
+from kwanmath.vector import vnormalize
 from matplotlib import pyplot as plt
 from scipy.interpolate import interp1d
-from spiceypy import furnsh, str2et, spkezr
+from spiceypy import furnsh, str2et, spkezr, etcal, sce2s, pxform
 
 from magrathea import draw_planets, stage, draw_stars, load_stars, draw_sun
 from magrathea.stage import double_stage
 from magrathea.stars.stardraw import _DEFAULT_SIG_X,_DEFAULT_SIG_Y
+from magrathea.triangle.mesh import Mesh
+from magrathea.triangle.meshload import load3mf
+from magrathea.triangle.tridraw import tri_raster
 
 # Closest approach on calendar
 cal_ca="1979-03-05 12:05:26 TDB"
@@ -133,13 +139,29 @@ def f_io_yd(i_framenum):
         return f_io_a_yd(i_framenum)
 
 
+@dataclass
+class Staging:
+    pri_pos:np.ndarray
+    sec_pos:np.ndarray
+    pri_xpos:Callable[[int],float]=lambda i_frame:0
+    pri_ypos:Callable[[int],float]=lambda i_frame:0
+    sec_xpos:Callable[[int],float]=lambda i_frame:0
+    sec_ypos:Callable[[int],float]=lambda i_frame:0
+    fg_xpos:Callable[[int],float]=lambda i_frame:0
+    fg_ypos:Callable[[int],float]=lambda i_frame:0
+    fg_dist:Callable[[int],float]=lambda i_frame:20
+    t:Callable[[int],float]=lambda i_frame:0
+
+
 def main():
     univ_frame="ECLIPB1950"
+    # begin literate_doc spice_furnsh literate_doc/Spice.ipynb
     vgr=1
     furnsh(f"data/spice/vgr{vgr}.tm")
     furnsh("data/spice/lsk/naif0012.tls")
     furnsh("data/spice/pck/pck00011.tpc")
     furnsh("data/spice/pck/jupiter_system2.tpc")
+    # end literate_doc spice_furnsh
     scale=4
     n_rows=480*scale
     n_cols=640*scale
@@ -150,26 +172,35 @@ def main():
                     504: (1*plt.imread("data/textures/CallistoMap.png")).astype(np.float64),
                     }
     stars=load_stars(frame=univ_frame)
+    sc_mesh:Mesh=load3mf("data/output/mesh/voyager.3mf")
     extra_rots = {599: -16}
     et_ca=str2et(cal_ca)
     # from frame 1212, which includes Jupiter, Io in foreground, and one more moon (Europa?) in the background
-    for frame_number in range(2185,2465+1):
+    for frame_number in range(1,4941+1):
     #for frame_number in range(1212,1213):
-        print(frame_number)
         et=float(f_et(frame_number)) #1979-03-04 20:28:31.788 ET, J-15:36:54.211
+        print(f"{frame_number:4d}, {et:.6f}, {etcal(et)}, {sce2s(-31,et)}")
         # Copied from Stage HudMatrix. That is a camera-to-universe transformation
         # but in the transposed row-vector form that POV-Ray uses. Put the data here exactly as-is,
         # then chunk out and de-transpose it with code.
+        # begin literate_doc spkezr literate_doc/Spice.ipynb
+        # Get position of planet relative to spacecraft, with LT+S geometric correction. This shows
+        # where Jupiter is at the time that light leaves it to arrive at the spacecraft at the requested time.
+        # It also shows stellar aberration due to relative motion of the objects. This results in the best
+        # available position of where Jupiter *appears* to be from the spacecraft
         jupiter_state,_=spkezr("599",et,univ_frame,"LT+S",str(-30-vgr))
         jupiter_pos=jupiter_state[:3].reshape(-1,1)
+        # Same with Io, Ganymede, and Callisto, since we use all of these for staging
         io_state,_=spkezr("501",et,univ_frame,"LT+S",str(-30-vgr))
         io_pos=io_state[:3].reshape(-1,1)
         ganymede_state,_=spkezr("503",et,univ_frame,"LT+S",str(-30-vgr))
         ganymede_pos=ganymede_state[:3].reshape(-1,1)
         callisto_state,_=spkezr("504",et,univ_frame,"LT+S",str(-30-vgr))
         callisto_pos=callisto_state[:3].reshape(-1,1)
+        # Same with the Sun. It's far enough away that LT+S might actually make a pixel's worth of difference.
         sun_state,_=spkezr("10",et,univ_frame,"LT+S",str(-30-vgr))
         sun_pos=sun_state[:3].reshape(-1,1)
+        # end literate_doc spkezr
         frame_stage=None
         def stage1(f0,f1,actor,this_f_xd=f_xd,this_f_yd=f_yd):
             nonlocal frame_stage
@@ -191,11 +222,16 @@ def main():
                                t=linterp(f0, 0.0, f1, 1.0, frame_number),
                                sky_vec=np.array([[0.0], [0.0], [1.0]]), right_scale=4 / 3, angle=18
                                )
+        stage_table=[
+            (0,2185,jupiter_pos,f_xd,f_yd,None,None,None,lambda i_frame:0),
+            (2185,2279,)
+        ]
         if frame_number<=2185:
             stage1(0,2185,jupiter_pos)
+
         elif frame_number<=2279:
-            stage2(2185,2273,jupiter_pos,io_pos)#,    f1_xd=f_io_xd,    f1_yd=f_io_yd)
-        if frame_number<=2872:
+            stage2(2185,2279,jupiter_pos,io_pos)#,    f1_xd=f_io_xd,    f1_yd=f_io_yd)
+        elif frame_number<=2872:
             stage1(2279,2872,            io_pos)#,this_f_xd=f_io_xd,this_f_yd=f_io_yd)
         elif frame_number<=2966:
             stage2(2873,2966,io_pos,ganymede_pos)
@@ -238,12 +274,18 @@ def main():
                      texture_maps=texture_maps,
                      extra_rots=extra_rots,
                      use_c=True)
+        M_ub=pxform(f"VG{vgr}_SC_BUS",univ_frame,et)
+        M_uc=np.hstack((frame_stage.right_u,frame_stage.down_u,frame_stage.direction_u))
+        M_cu=np.linalg.inv(M_uc)
+        lhat_u=vnormalize(sun_pos)
+        sc_mesh.rasterize(frame_buffer=frame_buffer,M_ub=M_ub,M_cu=M_cu,T_c=np.array([[0.0],[0.0],[20.0]]),lhat_u=lhat_u)
         plt.imsave(f"data/output/v1j/frame_{frame_number:04d}.png",np.clip(frame_buffer,0.0,1.0))
-        #plt.clf()
-        #plt.imshow(frame_buffer)
-        #plt.title(f"Frame {frame_number}")
-        #plt.pause(0.01)
-    #plt.show()
+        if frame_number%10==0:
+            plt.clf()
+            plt.imshow(frame_buffer)
+            plt.title(f"Frame {frame_number}")
+            plt.pause(0.01)
+    plt.show()
 
 
 if __name__ == "__main__":

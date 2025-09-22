@@ -126,7 +126,7 @@ class Mesh:
     def rasterize(self,*,frame_buffer:np.ndarray,
                   M_ub: np.ndarray, M_cu: np.ndarray,
                   T_c: np.ndarray = None, T_u: np.ndarray = None, T_b: np.ndarray = None,
-                  lhat_u: np.ndarray, diffuse: float = 0.9, ambient: float = 0.1,use_c:bool=False):
+                  lhat_u: np.ndarray, diffuse: float = 0.9, ambient: float = 0.1,use_c:bool=True):
         tris,colors=self.shade_geometry(M_ub=M_ub,M_cu=M_cu,
                                         T_c=T_c,T_u=T_u,T_b=T_b,
                                         lhat_u=lhat_u,diffuse=diffuse,ambient=ambient,
