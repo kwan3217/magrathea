@@ -105,7 +105,7 @@ module LaunchMount() {
     [3,4],[0,4]
   ];
   color([0.5,0.5,0.5])
-  Tubes(LaunchMountV,LaunchMountE,1);
+  Tubes(LaunchMountV,LaunchMountE,2);
 }
 
 RTGPivotZ=-24;
@@ -360,10 +360,12 @@ module ScienceTruss() {
     [1,3]
   ],0.5);
 }
-
+//Science boom measured 95.44" from deploy joint to center of azimuth joint,
+//angle 8.56deg.
+//angle 10.03deg stowed
 module ScienceBoom() {
   translate([0,45,-43])
-  rotate([-7,0,0])    //deployed position
+  rotate([-8.56,0,0])    //deployed position
   //rotate([90,0,0])  //stowed position
   color([0.5,0.5,0.5]) {
   Tubes([
