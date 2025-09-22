@@ -327,7 +327,7 @@ def _draw_planet(*,
                     r_light_b=r_light_b,
                     M_bu=M_bu
     )
-    print(f"{use_c=}")
+    #print(f"{use_c=}")
     if use_c:
         py_draw_planet_bottom(frame_buffer, texture_map, extra_rot, *top_half)
     else:

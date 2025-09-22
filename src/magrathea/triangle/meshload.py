@@ -19,7 +19,7 @@ class RequiredSectionMissingError(LookupError):
 def parse_html_color(color:str):
     return np.array((int(color[1:3],16),int(color[3:5],16),int(color[5:7],16)))/255
 
-
+# begin literate_doc load3mf
 def load3mf(infn:str|Path)-> Mesh:
     with ZipFile(infn, "r") as zip:
         with zip.open("3D/3dmodel.model") as inf:
@@ -61,5 +61,5 @@ def load3mf(infn:str|Path)-> Mesh:
     print(triangles.shape)
     print(tricolors.shape)
     return Mesh(triangles=triangles, tricolors=tricolors)
-
+# end literate_doc load3mf
 
