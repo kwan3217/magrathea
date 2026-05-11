@@ -14,6 +14,8 @@ from scipy.interpolate import interp1d
 from spiceypy import furnsh, str2et, spkezr, etcal, sce2s, pxform
 
 from magrathea import draw_planets, stage, draw_stars, load_stars, draw_sun
+from magrathea.media.ffmpeg import ffmpeg
+from magrathea.media.image import rebin_rgb
 from magrathea.stage import double_stage
 from magrathea.stars.stardraw import _DEFAULT_SIG_X,_DEFAULT_SIG_Y
 from magrathea.triangle.mesh import Mesh
@@ -153,6 +155,8 @@ class Staging:
     t:Callable[[int],float]=lambda i_frame:0
 
 
+
+
 def main():
     univ_frame="ECLIPB1950"
     # begin literate_doc spice_furnsh literate_doc/Spice.ipynb
@@ -162,9 +166,11 @@ def main():
     furnsh("data/spice/pck/pck00011.tpc")
     furnsh("data/spice/pck/jupiter_system2.tpc")
     # end literate_doc spice_furnsh
-    scale=4
-    n_rows=480*scale
-    n_cols=640*scale
+    scale=2
+    n_unscaled_rows=1080
+    n_unscaled_cols=1440
+    n_rows=n_unscaled_rows*scale
+    n_cols=n_unscaled_cols*scale
     texture_maps = {599: (1*plt.imread("data/textures/JupiterMap.png")).astype(np.float64),
                     501: (1*plt.imread("data/textures/IoMap.png")).astype(np.float64),
                     502: (1*plt.imread("data/textures/EuropaMap.png")).astype(np.float64),
@@ -203,8 +209,7 @@ def main():
         # end literate_doc spkezr
         frame_stage=None
         def stage1(f0,f1,actor,this_f_xd=f_xd,this_f_yd=f_yd):
-            nonlocal frame_stage
-            frame_stage = stage(camera_ru=np.array([[0.0], [0.0], [0.0]]),
+            return stage(camera_ru=np.array([[0.0], [0.0], [0.0]]),
                                 actor_ru=actor,
                                 sky_vec=np.array([[0.0], [0.0], [1.0]]),
                                 right_scale=4.0 / 3.0,
@@ -215,8 +220,7 @@ def main():
         def stage2(f0,f1,actor0,actor1, *,
                    f0_xd=f_xd,f0_yd=f_yd,
                    f1_xd=f_xd,f1_yd=f_yd):
-            nonlocal frame_stage
-            frame_stage = double_stage(camera_ru=np.array([[0.0], [0.0], [0.0]]),
+            return double_stage(camera_ru=np.array([[0.0], [0.0], [0.0]]),
                                actor_ru0=actor0, x0_d=f0_xd(frame_number), y0_d=f0_yd(frame_number),
                                actor_ru1=actor1, x1_d=f1_xd(frame_number), y1_d=f1_yd(frame_number),
                                t=linterp(f0, 0.0, f1, 1.0, frame_number),
@@ -227,28 +231,28 @@ def main():
             (2185,2279,)
         ]
         if frame_number<=2185:
-            stage1(0,2185,jupiter_pos)
+            frame_stage=stage1(0,2185,jupiter_pos)
 
         elif frame_number<=2279:
-            stage2(2185,2279,jupiter_pos,io_pos)#,    f1_xd=f_io_xd,    f1_yd=f_io_yd)
+            frame_stage=stage2(2185,2279,jupiter_pos,io_pos)#,    f1_xd=f_io_xd,    f1_yd=f_io_yd)
         elif frame_number<=2872:
-            stage1(2279,2872,            io_pos)#,this_f_xd=f_io_xd,this_f_yd=f_io_yd)
+            frame_stage=stage1(2279,2872,            io_pos)#,this_f_xd=f_io_xd,this_f_yd=f_io_yd)
         elif frame_number<=2966:
-            stage2(2873,2966,io_pos,ganymede_pos)
+            frame_stage=stage2(2873,2966,io_pos,ganymede_pos)
         elif frame_number<=3372:
-            stage1(2967,3372,ganymede_pos)
+            frame_stage=stage1(2967,3372,ganymede_pos)
         elif frame_number<=3466:
-            stage2(3373,3466,ganymede_pos,jupiter_pos)
+            frame_stage=stage2(3373,3466,ganymede_pos,jupiter_pos)
         elif frame_number<=3780:
-            stage1(3467,3780,jupiter_pos)
+            frame_stage=stage1(3467,3780,jupiter_pos)
         elif frame_number<=3873:
-            stage2(3781,3873,jupiter_pos,callisto_pos)
+            frame_stage=stage2(3781,3873,jupiter_pos,callisto_pos)
         elif frame_number<=4279:
-            stage1(3874,4279,callisto_pos)
+            frame_stage=stage1(3874,4279,callisto_pos)
         elif frame_number<=4371:
-            stage2(4280,4371,callisto_pos,jupiter_pos)
+            frame_stage=stage2(4280,4371,callisto_pos,jupiter_pos)
         else:
-            stage1(4372,4941,jupiter_pos)
+            frame_stage=stage1(4372,4941,jupiter_pos)
         frame_buffer=np.zeros([n_rows,n_cols,3],dtype=np.float64)
         draw_stars(frame_buffer=frame_buffer,stars=stars,
                    down_u=frame_stage.down_u,
@@ -279,13 +283,15 @@ def main():
         M_cu=np.linalg.inv(M_uc)
         lhat_u=vnormalize(sun_pos)
         sc_mesh.rasterize(frame_buffer=frame_buffer,M_ub=M_ub,M_cu=M_cu,T_c=np.array([[0.0],[0.0],[20.0]]),lhat_u=lhat_u)
+        sm_frame_buffer=rebin_rgb(frame_buffer,(n_unscaled_rows,n_unscaled_cols,3))
         plt.imsave(f"data/output/v1j/frame_{frame_number:04d}.png",np.clip(frame_buffer,0.0,1.0))
+        plt.imsave(f"data/output/v1j_small/frame_{frame_number:04d}.png",np.clip(sm_frame_buffer,0.0,1.0))
         if frame_number%10==0:
             plt.clf()
-            plt.imshow(frame_buffer)
+            plt.imshow(sm_frame_buffer)
             plt.title(f"Frame {frame_number}")
             plt.pause(0.01)
-    plt.show()
+    ffmpeg("data/output/v1j_small/frame_%04d.png","data/output/v1j.mkv")
 
 
 if __name__ == "__main__":

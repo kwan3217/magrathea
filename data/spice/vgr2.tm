@@ -1,13 +1,13 @@
 \begindata
 
-PATH_VALUES = ( '/home/jeppesen/workspace/blinnfit/data/spice/ck',
-                '/home/jeppesen/workspace/blinnfit/data/spice/fk',
-                '/home/jeppesen/workspace/blinnfit/data/spice/ik',
-                '/home/jeppesen/workspace/blinnfit/data/spice/lsk',
-                '/home/jeppesen/workspace/blinnfit/data/spice/pck',
-                '/home/jeppesen/workspace/blinnfit/data/spice/sclk',
-                '/home/jeppesen/workspace/blinnfit/data/spice/spk',
-                '/home/jeppesen/workspace/blinnfit/data/spice/spk')
+PATH_VALUES = ( '/home/chrisj/workspace/blinnfit/data/spice/ck',
+                '/home/chrisj/workspace/blinnfit/data/spice/fk',
+                '/home/chrisj/workspace/blinnfit/data/spice/ik',
+                '/home/chrisj/workspace/blinnfit/data/spice/lsk',
+                '/home/chrisj/workspace/blinnfit/data/spice/pck',
+                '/home/chrisj/workspace/blinnfit/data/spice/sclk',
+                '/home/chrisj/workspace/blinnfit/data/spice/spk',
+                '/home/chrisj/workspace/blinnfit/data/spice/spk')
 
 PATH_SYMBOLS = ('CK',
                 'FK',

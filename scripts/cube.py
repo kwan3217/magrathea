@@ -33,6 +33,7 @@ def main():
         z_c=20
     verbose=True
     print(mesh)
+    plt.figure()
     thetas=np.arange(63)/10
     for i_theta,theta in enumerate(thetas):
         c=np.cos(theta)

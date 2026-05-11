@@ -8,7 +8,6 @@ import matplotlib.pyplot as plt
 import pytest
 from spiceypy import furnsh
 
-from magrathea.planet import draw_planet, draw_planets
 
 
 @pytest.fixture(autouse=True,scope="session")

@@ -1,8 +1,8 @@
 [build-system]
 requires = [
-    "setuptools>=61.0",
-    "Cython>=0.29.36",
-    "numpy>=1.23.0"
+    "setuptools",
+    "Cython",
+    "numpy"
 ]
 build-backend = "setuptools.build_meta"
 
@@ -11,7 +11,7 @@ name = "magrathea"
 version = "0.1.0"
 description = "A Python project template for the magrathea repository."
 authors = [
-    { name = "Your Name", email = "your.email@example.com" }
+    { name = "kwan3217", email = "kwan3217@gmail.com" }
 ]
 readme = "README.md"
 requires-python = ">=3.11"
@@ -21,8 +21,8 @@ dependencies = [
     "matplotlib",
     "pytest",
     "kwanmath @ git+https://github.com/kwan3217/kwanmath.git",
-    "Cython>=0.29.36",
-    "numpy>=1.23.0",
+    "Cython",
+    "numpy",
     "jupyterlab"
 ]
 
